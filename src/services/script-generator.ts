@@ -5,11 +5,9 @@ export interface ScriptGenerationRequest {
   ideaId: string;
   style?: 'reddit' | 'youtube' | 'tiktok';
   length?: 'short' | 'medium' | 'long';
-  includeMetrics?: boolean;
 }
 
-export interface GeneratedScript {
-  id?: string;
+export interface GeneratedScriptData {
   idea_id: string;
   title: string;
   script_content: string;
@@ -17,13 +15,18 @@ export interface GeneratedScript {
   length: string;
   word_count: number;
   estimated_duration: string;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export class ScriptGeneratorService {
   private static readonly VIRAL_SCRIPT_TEMPLATE = `
 You are a viral Reddit storyteller for a YouTube channel. Based on the provided story idea, write a complete, engaging script that follows proven viral patterns.
+
+CRITICAL TTS REQUIREMENTS:
+- NO stage directions like [pause], [emphasize], [sigh], etc.
+- NO engagement metrics (likes, views, comments)
+- Write ONLY what should be spoken aloud
+- Use natural speech patterns and timing
+- Let emotion come through word choice, not directions
 
 VIRAL SCRIPT REQUIREMENTS:
 1. **Hook (First 10 seconds)**: Start with an attention-grabbing question or shocking statement
@@ -44,25 +47,26 @@ SCRIPT STRUCTURE:
 
 LANGUAGE STYLE:
 - Use contractions and casual language
-- Include emotional expressions and reactions
-- Add natural pauses and emphasis
+- Include emotional expressions naturally in the words
+- Use natural speech rhythms and sentence breaks
 - Include rhetorical questions to engage viewers
 - Use specific details that make the story feel real
+- Express emotions through word choice, not stage directions
 
 LENGTH GUIDELINES:
-- Short (30-60 seconds): 100-150 words
-- Medium (1-3 minutes): 200-400 words  
-- Long (3-5 minutes): 500-800 words
+- Short (30-60 seconds): 80-120 words
+- Medium (1-2 minutes): 150-200 words  
+- Long (2-3 minutes): 180-200 words
 
-Add realistic engagement metrics at the end (likes: X.X lakhs, views: Y.Y lakhs).
+IMPORTANT: The script should be ready for Text-to-Speech conversion. Write only spoken words, no stage directions, no formatting, no engagement metrics.
 `;
 
   static async generateScript(
     idea: GeneratedIdea, 
     request: ScriptGenerationRequest
-  ): Promise<GeneratedScript> {
+  ): Promise<GeneratedScriptData> {
     try {
-      const { style = 'reddit', length = 'medium', includeMetrics = true } = request;
+      const { style = 'reddit', length = 'medium' } = request;
       
       const lengthGuideline = this.getLengthGuideline(length);
       const styleGuideline = this.getStyleGuideline(style);
@@ -81,11 +85,16 @@ Target Audience: ${idea.target_audience}
 SCRIPT REQUIREMENTS:
 - Style: ${styleGuideline}
 - Length: ${lengthGuideline}
-- Include engagement metrics: ${includeMetrics}
+- MAXIMUM: 200 words (strictly enforce this limit)
+- TTS-Ready: NO stage directions, NO metrics, ONLY spoken words
 
-Write a complete script that transforms this idea into a viral story. Make it feel authentic, emotional, and shareable. The script should be ready for voice-over recording.
+Write a complete script that transforms this idea into a viral story. Make it feel authentic, emotional, and shareable. The script should be ready for Text-to-Speech conversion.
 
-Return ONLY the script text, no additional formatting or explanations.
+CRITICAL: 
+1. NEVER exceed 200 words total
+2. Return ONLY the spoken words - no [pause], [emphasize], no engagement metrics, no stage directions
+3. Write exactly what should be spoken aloud
+4. Count your words and stay under 200
 `;
 
       const completion = await openai.chat.completions.create({
@@ -130,11 +139,11 @@ Return ONLY the script text, no additional formatting or explanations.
   private static getLengthGuideline(length: string): string {
     switch (length) {
       case 'short':
-        return 'Short format (30-60 seconds, 100-150 words) - Focus on the most dramatic moment';
+        return 'Short format (30-60 seconds, 80-120 words) - Focus on the most dramatic moment';
       case 'long':
-        return 'Long format (3-5 minutes, 500-800 words) - Include full backstory and detailed resolution';
+        return 'Long format (2-3 minutes, 180-200 words) - Include full backstory and detailed resolution';
       default:
-        return 'Medium format (1-3 minutes, 200-400 words) - Balanced storytelling with key details';
+        return 'Medium format (1-2 minutes, 150-200 words) - Balanced storytelling with key details';
     }
   }
 
@@ -168,11 +177,25 @@ Return ONLY the script text, no additional formatting or explanations.
     }
   }
 
+  static cleanScriptForTTS(scriptContent: string): string {
+    // Remove stage directions and formatting for TTS
+    return scriptContent
+      // Remove stage directions in brackets
+      .replace(/\[.*?\]/g, '')
+      // Remove engagement metrics (likes, views, etc.)
+      .replace(/Likes:.*?lakhs.*?Views:.*?lakhs.*?$/gim, '')
+      .replace(/\d+\.\d+\s*lakhs?\s*(likes?|views?)/gi, '')
+      // Remove multiple spaces and line breaks
+      .replace(/\s+/g, ' ')
+      // Remove leading/trailing whitespace
+      .trim();
+  }
+
   static async generateMultipleScripts(
     ideas: GeneratedIdea[],
     baseRequest: Omit<ScriptGenerationRequest, 'ideaId'>
-  ): Promise<GeneratedScript[]> {
-    const scripts: GeneratedScript[] = [];
+  ): Promise<GeneratedScriptData[]> {
+    const scripts: GeneratedScriptData[] = [];
     
     for (const idea of ideas) {
       try {

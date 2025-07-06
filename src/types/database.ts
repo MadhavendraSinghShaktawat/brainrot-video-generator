@@ -74,6 +74,7 @@ export type Database = {
           updated_at: string
           user_id: string | null
           word_count: number
+          audio_url: string | null
         }
         Insert: {
           created_at?: string
@@ -88,6 +89,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           word_count?: number
+          audio_url?: string | null
         }
         Update: {
           created_at?: string
@@ -102,6 +104,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           word_count?: number
+          audio_url?: string | null
         }
         Relationships: [
           {
@@ -109,6 +112,41 @@ export type Database = {
             columns: ["idea_id"]
             isOneToOne: false
             referencedRelation: "generated_ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      generated_videos: {
+        Row: {
+          id: string
+          script_id: string | null
+          video_url: string
+          duration: string | null
+          created_at: string
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          script_id?: string | null
+          video_url: string
+          duration?: string | null
+          created_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          script_id?: string | null
+          video_url?: string
+          duration?: string | null
+          created_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_videos_script_id_fkey",
+            columns: ["script_id"],
+            isOneToOne: false,
+            referencedRelation: "generated_scripts",
             referencedColumns: ["id"]
           },
         ]
@@ -269,4 +307,8 @@ export interface GenerationSettings {
   tone: 'dramatic' | 'shocking' | 'emotional' | 'controversial' | 'inspiring'
   length: 'short' | 'medium' | 'long'
   count: number
-} 
+}
+
+export type GeneratedVideo = Database['public']['Tables']['generated_videos']['Row']
+export type GeneratedVideoInsert = Database['public']['Tables']['generated_videos']['Insert']
+export type GeneratedVideoUpdate = Database['public']['Tables']['generated_videos']['Update']

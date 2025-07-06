@@ -17,7 +17,9 @@ import {
   PlusCircle,
   FileText,
   Zap,
+  Mic,
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -43,6 +45,19 @@ const navigationItems = [
     href: '/ideas',
     active: false,
   },
+  {
+    icon: Mic,
+    label: 'Voice Generation',
+    href: '/voice-generation',
+    active: false,
+  },
+  {
+    icon: Video,
+    label: 'YouTube Shorts',
+    href: '/youtube-shorts',
+    active: false,
+  },
+  // Video Generation
   {
     icon: Video,
     label: 'Videos',
@@ -84,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
       <div className="p-4 flex items-center justify-between">
         {!isCollapsed && (
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-lg">
               BR
             </div>
             <span className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -92,34 +107,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
             </span>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle size="sm" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </div>
 
       <Separator />
 
       {/* Quick Action */}
-      <div className="p-4">
-        <Link href="/generate-ideas">
+      <div className="p-4 space-y-2">
+        <Link href="/youtube-shorts">
           <Button
             className={`${
               isCollapsed ? 'w-8 h-8 p-0' : 'w-full'
-            } bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300`}
+            } bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105`}
           >
-            <PlusCircle className="h-4 w-4" />
-            {!isCollapsed && <span className="ml-2">Generate Ideas</span>}
+            <Video className="h-4 w-4" />
+            {!isCollapsed && <span className="ml-2">Create YouTube Short</span>}
           </Button>
         </Link>
+        {!isCollapsed && (
+          <Link href="/generate-ideas">
+            <Button
+              variant="outline"
+              className="w-full hover:bg-blue-50 dark:hover:bg-blue-900/20 border-blue-200 dark:border-blue-800 hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200"
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Generate Ideas
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Navigation */}

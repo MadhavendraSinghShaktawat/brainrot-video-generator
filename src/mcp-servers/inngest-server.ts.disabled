@@ -1,0 +1,413 @@
+#!/usr/bin/env node
+
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  Tool,
+} from '@modelcontextprotocol/sdk/types.js';
+import { inngest } from '../lib/inngest.js';
+
+/**
+ * MCP Server for Inngest Background Jobs
+ * 
+ * This server provides tools to:
+ * - Send events to trigger Inngest functions
+ * - Monitor job status and progress
+ * - List available Inngest functions
+ * - Get job logs and history
+ */
+class InngestMCPServer {
+  private server: Server;
+
+  constructor() {
+    this.server = new Server(
+      {
+        name: 'inngest-server',
+        version: '0.1.0',
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
+      }
+    );
+
+    this.setupHandlers();
+  }
+
+  private setupHandlers() {
+    // List available tools
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      return {
+        tools: [
+          {
+            name: 'send_event',
+            description: 'Send an event to trigger Inngest functions',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  description: 'The name of the event to send',
+                },
+                data: {
+                  type: 'object',
+                  description: 'The event data payload',
+                },
+                user: {
+                  type: 'object',
+                  description: 'Optional user data for the event',
+                  properties: {
+                    id: { type: 'string' },
+                    email: { type: 'string' },
+                  },
+                },
+              },
+              required: ['name', 'data'],
+            },
+          },
+          {
+            name: 'start_video_generation',
+            description: 'Start video generation workflow for a script',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                scriptId: {
+                  type: 'string',
+                  description: 'The ID of the script to generate video for',
+                },
+                backgroundVideo: {
+                  type: 'string',
+                  description: 'Background video to use (subwaySurfer.mp4 or trackmania.mp4)',
+                  enum: ['subwaySurfer.mp4', 'trackmania.mp4'],
+                  default: 'subwaySurfer.mp4',
+                },
+                audioUrl: {
+                  type: 'string',
+                  description: 'URL of the audio file',
+                },
+                scriptContent: {
+                  type: 'string',
+                  description: 'The script content for subtitle generation',
+                },
+                userId: {
+                  type: 'string',
+                  description: 'The user ID',
+                },
+              },
+              required: ['scriptId', 'audioUrl', 'scriptContent', 'userId'],
+            },
+          },
+          {
+            name: 'send_progress_event',
+            description: 'Send a progress update event for video generation',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                scriptId: {
+                  type: 'string',
+                  description: 'The script ID being processed',
+                },
+                step: {
+                  type: 'string',
+                  description: 'The current processing step',
+                },
+                progress: {
+                  type: 'number',
+                  description: 'Progress percentage (0-100)',
+                  minimum: 0,
+                  maximum: 100,
+                },
+                message: {
+                  type: 'string',
+                  description: 'Optional progress message',
+                },
+              },
+              required: ['scriptId', 'step', 'progress'],
+            },
+          },
+          {
+            name: 'send_completion_event',
+            description: 'Send a completion event for video generation',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                scriptId: {
+                  type: 'string',
+                  description: 'The script ID that was processed',
+                },
+                videoUrl: {
+                  type: 'string',
+                  description: 'URL of the generated video',
+                },
+                duration: {
+                  type: 'string',
+                  description: 'Duration of the video (MM:SS format)',
+                },
+              },
+              required: ['scriptId', 'videoUrl', 'duration'],
+            },
+          },
+          {
+            name: 'send_failure_event',
+            description: 'Send a failure event for video generation',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                scriptId: {
+                  type: 'string',
+                  description: 'The script ID that failed',
+                },
+                error: {
+                  type: 'string',
+                  description: 'Error message',
+                },
+                step: {
+                  type: 'string',
+                  description: 'The step where failure occurred',
+                },
+              },
+              required: ['scriptId', 'error'],
+            },
+          },
+          {
+            name: 'list_event_types',
+            description: 'List all available event types for this Inngest client',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+            },
+          },
+        ] satisfies Tool[],
+      };
+    });
+
+    // Handle tool calls
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+
+      try {
+        switch (name) {
+          case 'send_event': {
+            const { name: eventName, data, user } = args as {
+              name: string;
+              data: any;
+              user?: any;
+            };
+
+            const event = {
+              name: eventName,
+              data,
+              ...(user && { user }),
+            };
+
+            await inngest.send(event);
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `✅ Event sent successfully!\n\nEvent: ${eventName}\nData: ${JSON.stringify(data, null, 2)}`,
+                },
+              ],
+            };
+          }
+
+          case 'start_video_generation': {
+            const { scriptId, backgroundVideo = 'subwaySurfer.mp4', audioUrl, scriptContent, userId } = args as {
+              scriptId: string;
+              backgroundVideo?: string;
+              audioUrl: string;
+              scriptContent: string;
+              userId: string;
+            };
+
+            await inngest.send({
+              name: 'video.generation.requested',
+              data: {
+                scriptId,
+                audioUrl,
+                backgroundVideo,
+                scriptContent,
+                userId,
+              },
+            });
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `🎬 Video generation started!\n\nScript ID: ${scriptId}\nBackground: ${backgroundVideo}\nUser ID: ${userId}\n\nThe video generation workflow has been queued and will process in the background.`,
+                },
+              ],
+            };
+          }
+
+          case 'send_progress_event': {
+            const { scriptId, step, progress, message } = args as {
+              scriptId: string;
+              step: string;
+              progress: number;
+              message?: string;
+            };
+
+            await inngest.send({
+              name: 'video.generation.progress',
+              data: {
+                scriptId,
+                step,
+                progress,
+                ...(message && { message }),
+              },
+            });
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `📈 Progress event sent!\n\nScript ID: ${scriptId}\nStep: ${step}\nProgress: ${progress}%${message ? `\nMessage: ${message}` : ''}`,
+                },
+              ],
+            };
+          }
+
+          case 'send_completion_event': {
+            const { scriptId, videoUrl, duration } = args as {
+              scriptId: string;
+              videoUrl: string;
+              duration: string;
+            };
+
+            await inngest.send({
+              name: 'video.generation.completed',
+              data: {
+                scriptId,
+                videoUrl,
+                duration,
+              },
+            });
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `✅ Completion event sent!\n\nScript ID: ${scriptId}\nVideo URL: ${videoUrl}\nDuration: ${duration}`,
+                },
+              ],
+            };
+          }
+
+          case 'send_failure_event': {
+            const { scriptId, error, step } = args as {
+              scriptId: string;
+              error: string;
+              step?: string;
+            };
+
+            await inngest.send({
+              name: 'video.generation.failed',
+              data: {
+                scriptId,
+                error,
+                ...(step && { step }),
+              },
+            });
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `❌ Failure event sent!\n\nScript ID: ${scriptId}\nError: ${error}${step ? `\nStep: ${step}` : ''}`,
+                },
+              ],
+            };
+          }
+
+          case 'list_event_types': {
+            const eventTypes = [
+              {
+                name: 'video.generation.requested',
+                description: 'Triggers video generation workflow',
+                dataSchema: {
+                  scriptId: 'string',
+                  audioUrl: 'string',
+                  backgroundVideo: 'string',
+                  scriptContent: 'string',
+                  userId: 'string',
+                },
+              },
+              {
+                name: 'video.generation.progress',
+                description: 'Reports progress during video generation',
+                dataSchema: {
+                  scriptId: 'string',
+                  step: 'string',
+                  progress: 'number (0-100)',
+                  message: 'string (optional)',
+                },
+              },
+              {
+                name: 'video.generation.completed',
+                description: 'Indicates successful video generation completion',
+                dataSchema: {
+                  scriptId: 'string',
+                  videoUrl: 'string',
+                  duration: 'string',
+                },
+              },
+              {
+                name: 'video.generation.failed',
+                description: 'Indicates video generation failure',
+                dataSchema: {
+                  scriptId: 'string',
+                  error: 'string',
+                  step: 'string (optional)',
+                },
+              },
+            ];
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `📋 Available Event Types:\n\n${eventTypes
+                    .map(
+                      (event) =>
+                        `**${event.name}**\n${event.description}\nData Schema: ${JSON.stringify(event.dataSchema, null, 2)}\n`
+                    )
+                    .join('\n')}`,
+                },
+              ],
+            };
+          }
+
+          default:
+            throw new Error(`Unknown tool: ${name}`);
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    });
+  }
+
+  async run() {
+    const transport = new StdioServerTransport();
+    await this.server.connect(transport);
+    console.error('Inngest MCP Server running on stdio');
+  }
+}
+
+const server = new InngestMCPServer();
+server.run().catch(console.error);
+
+export default InngestMCPServer; 

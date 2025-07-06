@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { GeneratedIdea } from '@/types/database';
+import { GeneratedIdea, GeneratedScript } from '@/types/database';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
+import { ScriptViewer } from '@/components/scripts/script-viewer';
 import {
   Search,
   Filter,
@@ -23,6 +24,10 @@ import {
   ArrowUpDown,
   Heart,
   MoreVertical,
+  FileText,
+  Play,
+  Loader,
+  Film
 } from 'lucide-react';
 
 interface IdeasHistoryState {
@@ -35,6 +40,12 @@ interface IdeasHistoryState {
   sortOrder: 'asc' | 'desc';
   currentPage: number;
   itemsPerPage: number;
+  scripts: Record<string, GeneratedScript | null>;
+  scriptLoading: Record<string, boolean>;
+  viewingScript: GeneratedScript | null;
+  videoGenerating: Record<string, boolean>;
+  videos: Record<string, any[]>;
+  videoLoading: Record<string, boolean>;
 }
 
 export const IdeasHistory: React.FC = () => {
@@ -50,6 +61,12 @@ export const IdeasHistory: React.FC = () => {
     sortOrder: 'desc',
     currentPage: 1,
     itemsPerPage: 20,
+    scripts: {},
+    scriptLoading: {},
+    viewingScript: null,
+    videoGenerating: {},
+    videos: {},
+    videoLoading: {},
   });
 
   // Redirect if not authenticated
@@ -183,6 +200,151 @@ export const IdeasHistory: React.FC = () => {
   // Handle pagination
   const goToPage = (page: number): void => {
     setState(prev => ({ ...prev, currentPage: page }));
+  };
+
+  // Check scripts for current ideas
+  const checkScripts = useCallback(async (): Promise<void> => {
+    if (state.ideas.length === 0) return;
+    
+    try {
+      const ideaIds = state.ideas.map(idea => idea.id);
+      const response = await fetch('/api/scripts/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ideaIds }),
+      });
+
+      if (response.ok) {
+        const { scripts } = await response.json();
+        console.log('Scripts checked:', scripts); // Debug log
+        setState(prev => ({
+          ...prev,
+          scripts: { ...prev.scripts, ...scripts },
+        }));
+        
+        // Also fetch videos for scripts that exist
+        Object.values(scripts).forEach((script: any) => {
+          if (script) {
+            fetchVideosForScript(script.id);
+          }
+        });
+      } else {
+        console.error('Failed to check scripts, status:', response.status);
+      }
+    } catch (error) {
+      console.error('Error checking scripts:', error);
+    }
+  }, [state.ideas]);
+
+  // Generate script for an idea
+  const generateScript = async (ideaId: string): Promise<void> => {
+    setState(prev => ({
+      ...prev,
+      scriptLoading: { ...prev.scriptLoading, [ideaId]: true },
+    }));
+
+    try {
+      const response = await fetch('/api/generate-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ideaId,
+          style: 'reddit',
+          length: 'medium',
+          includeMetrics: true,
+        }),
+      });
+
+      if (response.ok) {
+        const { script } = await response.json();
+        setState(prev => ({
+          ...prev,
+          scripts: { ...prev.scripts, [ideaId]: script },
+          scriptLoading: { ...prev.scriptLoading, [ideaId]: false },
+        }));
+      } else {
+        console.error('Failed to generate script');
+        setState(prev => ({
+          ...prev,
+          scriptLoading: { ...prev.scriptLoading, [ideaId]: false },
+        }));
+      }
+    } catch (error) {
+      console.error('Error generating script:', error);
+      setState(prev => ({
+        ...prev,
+        scriptLoading: { ...prev.scriptLoading, [ideaId]: false },
+      }));
+    }
+  };
+
+  // View script
+  const viewScript = (script: GeneratedScript): void => {
+    setState(prev => ({ ...prev, viewingScript: script }));
+  };
+
+  // Close script viewer
+  const closeScriptViewer = (): void => {
+    setState(prev => ({ ...prev, viewingScript: null }));
+  };
+
+  // Check scripts when ideas change
+  useEffect(() => {
+    if (state.ideas.length > 0) {
+      checkScripts();
+    }
+  }, [state.ideas, checkScripts]);
+
+  // Fetch videos for a script
+  const fetchVideosForScript = async (scriptId: string): Promise<void> => {
+    setState(prev => ({ ...prev, videoLoading: { ...prev.videoLoading, [scriptId]: true }} as any));
+
+    try {
+      const response = await fetch(`/api/videos?script_id=${scriptId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setState(prev => ({ 
+          ...prev, 
+          videos: { ...prev.videos, [scriptId]: data.videos },
+          videoLoading: { ...prev.videoLoading, [scriptId]: false }
+        } as any));
+      }
+    } catch (err) {
+      console.error('Error fetching videos:', err);
+      setState(prev => ({ ...prev, videoLoading: { ...prev.videoLoading, [scriptId]: false }} as any));
+    }
+  };
+
+  // Generate video for an idea
+  const generateVideoForIdea = async (ideaId: string): Promise<void> => {
+    const script = state.scripts[ideaId];
+    if (!script || !(script as any).audio_url) return;
+    setState(prev => ({ ...prev, videoGenerating: { ...prev.videoGenerating, [ideaId]: true }} as any));
+
+    try {
+      const response = await fetch('/api/generate-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script_id: script.id,
+          video_name: 'subwaySurfer.mp4',
+          start_sec: 0
+        })
+      });
+      if (response.ok) {
+        alert('Video generated successfully!');
+        // Fetch updated videos for this script
+        await fetchVideosForScript(script.id);
+      } else {
+        const data = await response.json();
+        alert('Video generation failed: '+data.error);
+      }
+    } catch(err) {
+      console.error(err);
+      alert('Video generation error');
+    } finally {
+      setState(prev => ({ ...prev, videoGenerating: { ...prev.videoGenerating, [ideaId]: false }} as any));
+    }
   };
 
   const totalPages = Math.ceil(state.total / state.itemsPerPage);
@@ -364,6 +526,39 @@ export const IdeasHistory: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
+                    {/* Script Button */}
+                    {state.scripts[idea.id] ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => viewScript(state.scripts[idea.id]!)}
+                        className="text-green-600 border-green-600 hover:bg-green-50"
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        View Script
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => generateScript(idea.id)}
+                        disabled={state.scriptLoading[idea.id]}
+                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                      >
+                        {state.scriptLoading[idea.id] ? (
+                          <>
+                            <Loader className="h-4 w-4 mr-1 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4 mr-1" />
+                            Generate Script
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    
                     <Button
                       variant="ghost"
                       size="sm"
@@ -387,6 +582,21 @@ export const IdeasHistory: React.FC = () => {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                    {state.scripts[idea.id]?.audio_url && (
+                      <Button variant="outline" size="sm" onClick={() => generateVideoForIdea(idea.id)} disabled={state.videoGenerating?.[idea.id]} className="text-purple-600 border-purple-600 hover:bg-purple-50">
+                        {state.videoGenerating?.[idea.id] ? (
+                          <><Loader className="h-4 w-4 mr-1 animate-spin"/>Generating...</>
+                        ) : (
+                          <><Film className="h-4 w-4 mr-1"/>Generate Video</>
+                        )}
+                      </Button>
+                    )}
+                    {state.scripts[idea.id] && !state.videos[state.scripts[idea.id]?.id || ''] && !state.videoLoading?.[state.scripts[idea.id]?.id || ''] && (
+                      <Button variant="outline" size="sm" onClick={() => fetchVideosForScript(state.scripts[idea.id]?.id || '')} className="text-blue-600 border-blue-600 hover:bg-blue-50">
+                        <RefreshCw className="h-4 w-4 mr-1"/>
+                        Check Videos
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -415,6 +625,70 @@ export const IdeasHistory: React.FC = () => {
                       {idea.story}
                     </p>
                   </div>
+
+                  {/* Generated Voice (if available) */}
+                  {state.scripts[idea.id]?.audio_url && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                        🔊 Voice Preview
+                      </h4>
+                      <audio controls className="w-full">
+                        <source src={(state.scripts[idea.id] as any).audio_url} type="audio/wav" />
+                      </audio>
+                    </div>
+                  )}
+
+                  {/* Generated Videos (if available) */}
+                  {state.scripts[idea.id] && state.videos[state.scripts[idea.id]?.id || ''] && state.videos[state.scripts[idea.id]?.id || ''].length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center">
+                        <Film className="h-4 w-4 mr-2"/>
+                        🎬 Generated Videos ({state.videos[state.scripts[idea.id]?.id || ''].length})
+                      </h4>
+                      <div className="space-y-2">
+                        {state.videos[state.scripts[idea.id]?.id || ''].map((video: any, index: number) => (
+                          <div key={video.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                                <Play className="h-6 w-6 text-white"/>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">Video {index + 1}</p>
+                                <p className="text-xs text-gray-500">
+                                  Created {new Date(video.created_at).toLocaleDateString()}
+                                  {video.duration && ` • ${video.duration}`}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => window.open(video.video_url, '_blank')}
+                                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                              >
+                                <Eye className="h-4 w-4 mr-1"/>
+                                Watch
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                  const a = document.createElement('a');
+                                  a.href = video.video_url;
+                                  a.download = `video-${index + 1}.mp4`;
+                                  a.click();
+                                }}
+                                className="text-green-600"
+                              >
+                                <Download className="h-4 w-4"/>
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Viral Factors */}
                   <div>
@@ -493,6 +767,15 @@ export const IdeasHistory: React.FC = () => {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+      )}
+
+      {/* Script Viewer Modal */}
+      {state.viewingScript && (
+        <ScriptViewer
+          script={state.viewingScript}
+          onClose={closeScriptViewer}
+          onCopy={copyToClipboard}
+        />
       )}
     </div>
   );

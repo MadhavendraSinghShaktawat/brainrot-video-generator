@@ -1,78 +1,76 @@
 'use client';
 
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/auth-context';
-import { Search, Bell, Menu } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Bell, Search, Settings, LogOut } from 'lucide-react';
 
-interface HeaderProps {
-  onMenuClick?: () => void;
-}
-
-export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
-  const { user } = useAuth();
+export const Header: React.FC = () => {
+  const { user, signOut } = useAuth();
 
   return (
-    <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6">
-      {/* Left side - Mobile menu trigger */}
-      <div className="flex items-center space-x-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="lg:hidden p-2"
-          onClick={onMenuClick}
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
-        
-        <div className="hidden md:block">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Welcome back! Generate your next viral video.
-          </p>
-        </div>
-      </div>
+    <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50 sticky top-0 z-50 transition-all duration-300">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Search Bar */}
+          <div className="flex-1 max-w-lg">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search projects, videos, or scripts..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200"
+              />
+            </div>
+          </div>
 
-      {/* Center - Search */}
-      <div className="hidden md:flex flex-1 max-w-md mx-8">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search videos, scripts..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      </div>
+          {/* Right side actions */}
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+            </Button>
 
-      {/* Right side - Notifications and Profile */}
-      <div className="flex items-center space-x-4">
-        {/* Notifications */}
-        <Button variant="ghost" size="sm" className="relative p-2">
-          <Bell className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
 
-        {/* User Profile */}
-        <div className="flex items-center space-x-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user?.user_metadata?.avatar_url} />
-            <AvatarFallback className="bg-blue-100 text-blue-600 text-sm font-medium">
-              {user?.user_metadata?.full_name?.[0]?.toUpperCase() ||
-                user?.email?.[0]?.toUpperCase() ||
-                'U'}
-            </AvatarFallback>
-          </Avatar>
-          
-          <div className="hidden md:block">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">
-              {user?.user_metadata?.full_name || 'User'}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {user?.email}
-            </p>
+            <div className="flex items-center gap-3">
+              <Avatar className="w-8 h-8 ring-2 ring-blue-500/20 hover:ring-blue-500/40 transition-all duration-200">
+                <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                  {user?.email?.charAt(0).toUpperCase() || 'U'}
+                </div>
+              </Avatar>
+              
+              <div className="hidden sm:block">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {user?.email?.split('@')[0] || 'User'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {user?.email || 'user@example.com'}
+                </p>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={signOut}
+                className="hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
