@@ -41,6 +41,17 @@ google-cloud-key.json
 *-key.json
 service-account*.json
 
+# Large video files and executables
+brainrot-videos/
+ffmpeg-7.1.1-essentials_build/
+ffmpeg.zip
+public/generated-videos/
+public/generated-audio/
+tmp/
+
+# AI models directory
+ai-models/
+
 # vercel
 .vercel
 
