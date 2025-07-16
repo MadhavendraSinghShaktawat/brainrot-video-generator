@@ -1,0 +1,45 @@
+{
+  "fps": 30,
+  "width": 1080,
+  "height": 1920,
+  "background": "#000000",
+  "events": [
+    {
+      "id": "vid-1",
+      "type": "video",
+      "src": "https://storage.googleapis.com/coverr-main/mp4/Footboys1.mp4",
+      "start": 0,
+      "end": 300,
+      "layer": 0,
+      "xPct": -0.15,
+      "yPct": 0.1,
+      "scale": 1.1
+    },
+    {
+      "id": "img-1",
+      "type": "image",
+      "src": "https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d?w=1200",
+      "start": 0,
+      "end": 300,
+      "layer": 1,
+      "xPct": 0.25,
+      "yPct": -0.2,
+      "scale": 0.8
+    },
+    {
+      "id": "caption-1",
+      "type": "caption",
+      "text": "Sample caption positioned",
+      "start": 0,
+      "end": 300,
+      "layer": 2,
+      "xPct": 0,
+      "yPct": 0.35,
+      "scale": 1,
+      "style": {
+        "fontSize": 172,
+        "color": "#ffffff"
+      }
+    }
+  ]
+} 

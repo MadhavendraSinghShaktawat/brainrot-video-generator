@@ -1,6 +1,6 @@
 import { Inngest, EventSchemas } from 'inngest';
 
-// Define our event types for video generation
+// Define our event types for video generation and render jobs
 type Events = {
   'video.generation.requested': {
     data: {
@@ -31,6 +31,17 @@ type Events = {
       scriptId: string;
       error: string;
       step?: string;
+    };
+  };
+  'render.job.process': {
+    data: {
+      jobId: string;
+    };
+  };
+  'render.job.process.failure': {
+    data: {
+      jobId: string;
+      error: string;
     };
   };
 };

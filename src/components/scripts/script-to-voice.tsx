@@ -11,8 +11,10 @@ interface Voice {
   id: string;
   name: string;
   description: string;
-  preview_url?: string;
-  file_path: string;
+  fileType?: string;
+  fileSize?: number;
+  duration?: number;
+  createdAt?: string;
 }
 
 interface SystemInfo {
@@ -66,12 +68,11 @@ export const ScriptToVoice: React.FC<ScriptToVoiceProps> = ({ script, onClose })
 
   const loadVoices = async (): Promise<void> => {
     try {
-      const response = await fetch('/api/voices');
+      const response = await fetch('/api/voices?type=supabase');
       if (response.ok) {
         const voiceData = await response.json();
         setVoices(voiceData);
       } else {
-        // No voices available yet
         setVoices([]);
       }
     } catch (error) {
@@ -213,12 +214,10 @@ export const ScriptToVoice: React.FC<ScriptToVoiceProps> = ({ script, onClose })
     }
   };
 
-  const playPreview = (voice: Voice): void => {
-    if (voice.preview_url && audioRef.current) {
-      audioRef.current.src = voice.preview_url;
-      audioRef.current.play();
-    }
-  };
+  // Supabase voices do not have preview URLs. If preview is needed, implement separately.
+  // const playPreview = (voice: Voice): void => {
+  //   // No preview_url for Supabase voices
+  // };
 
   if (!script) {
     return null;
@@ -425,20 +424,6 @@ export const ScriptToVoice: React.FC<ScriptToVoiceProps> = ({ script, onClose })
                   >
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-medium">{voice.name}</h4>
-                      {voice.preview_url && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            playPreview(voice);
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m3-16l3 3-3 3m-3-3h12M3 14l3 3-3 3m3-3H3" />
-                          </svg>
-                        </Button>
-                      )}
                     </div>
                     <p className="text-sm text-gray-600">{voice.description}</p>
                   </div>

@@ -132,7 +132,7 @@ function chunkTextIntelligently(text: string, maxChunkSize: number): string[] {
 export class VoiceGeneratorService {
   static async getAvailableVoices(): Promise<Voice[]> {
     try {
-      const response = await fetch('/api/voices');
+      const response = await fetch('/api/voices?type=reference');
       if (!response.ok) {
         throw new Error('Failed to load voices');
       }

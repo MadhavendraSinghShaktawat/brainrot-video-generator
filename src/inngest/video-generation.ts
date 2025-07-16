@@ -228,7 +228,7 @@ export const generateVideoWorkflow = inngest.createFunction(
             script_id: scriptId,
             video_url: publicVideoPath,
             duration: formatDuration(audioDuration),
-            user_id: userId
+            user_id: userId // Use the real user ID from the request
           })
           .select()
           .single();

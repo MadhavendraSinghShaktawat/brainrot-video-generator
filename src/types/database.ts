@@ -151,6 +151,82 @@ export type Database = {
           },
         ]
       }
+      render_jobs: {
+        Row: {
+          id: string
+          user_id: string
+          timeline_json: Json
+          status: 'pending' | 'processing' | 'completed' | 'failed'
+          result_url: string | null
+          error_message: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          timeline_json: Json
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          result_url?: string | null
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          timeline_json?: Json
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          result_url?: string | null
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "render_jobs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timelines: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          data: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          data: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          data?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timelines_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       user_idea_stats: {
@@ -312,3 +388,13 @@ export interface GenerationSettings {
 export type GeneratedVideo = Database['public']['Tables']['generated_videos']['Row']
 export type GeneratedVideoInsert = Database['public']['Tables']['generated_videos']['Insert']
 export type GeneratedVideoUpdate = Database['public']['Tables']['generated_videos']['Update']
+
+// Render Jobs types
+export type RenderJob = Database['public']['Tables']['render_jobs']['Row']
+export type RenderJobInsert = Database['public']['Tables']['render_jobs']['Insert']
+export type RenderJobUpdate = Database['public']['Tables']['render_jobs']['Update']
+
+// Timeline types
+export type Timeline = Database['public']['Tables']['timelines']['Row']
+export type TimelineInsert = Database['public']['Tables']['timelines']['Insert']
+export type TimelineUpdate = Database['public']['Tables']['timelines']['Update']

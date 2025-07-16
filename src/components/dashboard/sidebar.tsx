@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -18,6 +19,9 @@ import {
   FileText,
   Zap,
   Mic,
+  PlayCircle,
+  Clapperboard,
+  TestTube,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
@@ -31,55 +35,47 @@ const navigationItems = [
     icon: Home,
     label: 'Dashboard',
     href: '/',
-    active: true,
-  },
-  {
-    icon: Zap,
-    label: 'Generate Ideas',
-    href: '/generate-ideas',
-    active: false,
-  },
-  {
-    icon: FileText,
-    label: 'Ideas History',
-    href: '/ideas',
-    active: false,
   },
   {
     icon: Mic,
     label: 'Voice Generation',
     href: '/voice-generation',
-    active: false,
-  },
-  {
-    icon: Video,
-    label: 'YouTube Shorts',
-    href: '/youtube-shorts',
-    active: false,
-  },
-  // Video Generation
-  {
-    icon: Video,
-    label: 'Videos',
-    href: '/videos',
-    active: false,
   },
   {
     icon: BarChart3,
     label: 'Analytics',
     href: '/analytics',
-    active: false,
+  },
+  {
+    icon: Clapperboard,
+    label: 'Video Editor',
+    href: '/editor',
+  },
+  {
+    icon: FileText,
+    label: 'Timelines',
+    href: '/timelines',
+  },
+  {
+    icon: TestTube,
+    label: 'Test Timeline',
+    href: '/test-timeline',
+  },
+  {
+    icon: TestTube,
+    label: 'Test Render',
+    href: '/test-render',
   },
   {
     icon: Settings,
     label: 'Settings',
     href: '/settings',
-    active: false,
   },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
   const { user, signOut } = useAuth();
+  const pathname = usePathname();
 
   const handleSignOut = async (): Promise<void> => {
     try {
@@ -126,43 +122,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
 
       <Separator />
 
-      {/* Quick Action */}
-      <div className="p-4 space-y-2">
-        <Link href="/youtube-shorts">
-          <Button
-            className={`${
-              isCollapsed ? 'w-8 h-8 p-0' : 'w-full'
-            } bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105`}
-          >
-            <Video className="h-4 w-4" />
-            {!isCollapsed && <span className="ml-2">Create YouTube Short</span>}
-          </Button>
-        </Link>
-        {!isCollapsed && (
-          <Link href="/generate-ideas">
-            <Button
-              variant="outline"
-              className="w-full hover:bg-blue-50 dark:hover:bg-blue-900/20 border-blue-200 dark:border-blue-800 hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200"
-            >
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Generate Ideas
-            </Button>
-          </Link>
-        )}
-      </div>
+      {/* Quick Action removed for scope reduction */}
 
       {/* Navigation */}
       <nav className="flex-1 px-2 space-y-1">
         {navigationItems.map((item) => {
           const IconComponent = item.icon;
+          const isActive = pathname === item.href;
           return (
             <Link key={item.label} href={item.href}>
               <Button
-                variant={item.active ? 'secondary' : 'ghost'}
+                variant={isActive ? 'secondary' : 'ghost'}
                 className={`${
                   isCollapsed ? 'w-12 h-12 p-0' : 'w-full justify-start'
                 } transition-all duration-300 ${
-                  item.active
+                  isActive
                     ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
                 }`}

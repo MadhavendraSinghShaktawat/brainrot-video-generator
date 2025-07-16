@@ -7,6 +7,7 @@ const openai = new OpenAI({
 export { openai };
 
 export interface StoryIdea {
+  id?: string;
   title: string;
   hook: string;
   story: string;

@@ -16,11 +16,12 @@ import {
 
 interface VoiceFile {
   id: string;
-  scriptId: string;
-  scriptTitle: string;
-  audioUrl: string;
-  duration: string;
-  created_at: string;
+  name: string;
+  description: string;
+  fileType?: string;
+  fileSize?: number;
+  duration?: number;
+  createdAt?: string;
 }
 
 interface VoiceSelectorProps {
@@ -42,12 +43,12 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({ onSelect, selected
   const fetchVoices = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/voices');
+      const response = await fetch('/api/voices?type=supabase');
       if (!response.ok) {
         throw new Error('Failed to fetch voices');
       }
       const data = await response.json();
-      setVoices(data.voices || []);
+      setVoices(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load voices');
     } finally {
@@ -56,28 +57,16 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({ onSelect, selected
   };
 
   const filteredVoices = voices.filter(voice =>
-    voice.scriptTitle.toLowerCase().includes(searchTerm.toLowerCase())
+    voice.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
-  };
-
-  const handlePlayPause = (voiceId: string, audioUrl: string) => {
-    if (playingId === voiceId) {
-      setPlayingId(null);
-      // Pause audio
-    } else {
-      setPlayingId(voiceId);
-      // Play audio
-      const audio = new Audio(audioUrl);
-      audio.play();
-      audio.onended = () => setPlayingId(null);
-    }
   };
 
   if (loading) {
@@ -146,7 +135,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({ onSelect, selected
                 <div className="flex items-center gap-2">
                   <Volume2 className="h-5 w-5 text-gray-400" />
                   <h3 className="font-medium text-gray-900 dark:text-white text-sm">
-                    {voice.scriptTitle}
+                    {voice.name}
                   </h3>
                 </div>
                 {selectedVoiceId === voice.id && (
@@ -155,28 +144,13 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({ onSelect, selected
               </div>
 
               <div className="flex items-center justify-between mb-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePlayPause(voice.id, voice.audioUrl);
-                  }}
-                  className="flex items-center gap-1"
-                >
-                  {playingId === voice.id ? (
-                    <Pause className="h-3 w-3" />
-                  ) : (
-                    <Play className="h-3 w-3" />
-                  )}
-                  {playingId === voice.id ? 'Pause' : 'Play'}
-                </Button>
-                <span className="text-sm text-gray-500">{voice.duration}</span>
+                {/* No audio preview for Supabase voices */}
+                <span className="text-sm text-gray-500">{voice.duration ? `${voice.duration}s` : ''}</span>
               </div>
 
               <div className="flex items-center gap-1 text-xs text-gray-500">
                 <Calendar className="h-3 w-3" />
-                {formatDate(voice.created_at)}
+                {formatDate(voice.createdAt)}
               </div>
             </Card>
           ))}

@@ -1,0 +1,116 @@
+2025-07-14T04:17:08.191838255Z 🆕 RunPod Serverless Render Worker version 0.5.0
+2025-07-14T04:17:08.191880488Z 🔒 GCS credential variables:
+2025-07-14T04:17:08.191883342Z   • GOOGLE_CLOUD_PROJECT_ID: ✅ set
+2025-07-14T04:17:08.191885705Z   • GOOGLE_CLOUD_CLIENT_EMAIL: ✅ set
+2025-07-14T04:17:08.191890633Z   • GOOGLE_CLOUD_PRIVATE_KEY: ✅ set
+2025-07-14T04:17:08.191892796Z 🤖 RunPod input configuration:
+2025-07-14T04:17:08.191894619Z   • RUNPOD_INPUT_TIMELINE_JSON: ❌ not set
+2025-07-14T04:17:08.191907538Z   • RUNPOD_INPUT_TIMELINE_URL: ❌ not set
+2025-07-14T04:17:08.191909361Z   • RUNPOD_INPUT_OUTPUT_FILENAME: default: video.mp4
+2025-07-14T04:17:08.191938324Z   • RUNPOD_INPUT_COMPOSITION_ID: default: JsonDrivenVideo
+2025-07-14T04:17:08.192912999Z 📥 Received input: {
+2025-07-14T04:17:08.192921642Z   hasTimelineJson: false,
+2025-07-14T04:17:08.192924126Z   hasTimelineUrl: false,
+2025-07-14T04:17:08.192925958Z   outputFilename: undefined,
+2025-07-14T04:17:08.192928112Z   compositionId: undefined
+2025-07-14T04:17:08.192929964Z }
+2025-07-14T04:17:08.194508691Z ❌ Render failed: Error: No timeline input provided. Set RUNPOD_INPUT_TIMELINE_JSON or RUNPOD_INPUT_TIMELINE_URL
+2025-07-14T04:17:08.194518636Z     at loadTimelineJson (/app/scripts/render-worker.ts:101:11)
+2025-07-14T04:17:08.194520569Z     at main (/app/scripts/render-worker.ts:165:30)
+2025-07-14T04:17:08.194522322Z     at path (/app/scripts/render-worker.ts:265:3)
+2025-07-14T04:17:08.194524084Z     at Object.<anonymous> (/app/scripts/render-worker.ts:269:1)
+2025-07-14T04:17:08.194525747Z     at Module._compile (node:internal/modules/cjs/loader:1529:14)
+2025-07-14T04:17:08.194527790Z     at Object.transformer (/app/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1104)
+2025-07-14T04:17:08.194529943Z     at Module.load (node:internal/modules/cjs/loader:1275:32)
+2025-07-14T04:17:08.194531595Z     at Module._load (node:internal/modules/cjs/loader:1096:12)
+2025-07-14T04:17:08.194533228Z     at cjsLoader (node:internal/modules/esm/translators:298:15)
+2025-07-14T04:17:08.194534870Z     at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:240:7)
+2025-07-14T04:17:08.194540218Z 📡 Signaling completion to RunPod...
+2025-07-14T04:17:08.194560378Z RUNPOD_RESULT: {"success":false,"error":"No timeline input provided. Set RUNPOD_INPUT_TIMELINE_JSON or RUNPOD_INPUT_TIMELINE_URL"}
+2025-07-14T04:17:24.333737068Z 🆕 RunPod Serverless Render Worker version 0.5.0
+2025-07-14T04:17:24.333780753Z 🔒 GCS credential variables:
+2025-07-14T04:17:24.333786932Z   • GOOGLE_CLOUD_PROJECT_ID: ✅ set
+2025-07-14T04:17:24.333792040Z   • GOOGLE_CLOUD_CLIENT_EMAIL: ✅ set
+2025-07-14T04:17:24.333796347Z   • GOOGLE_CLOUD_PRIVATE_KEY: ✅ set
+2025-07-14T04:17:24.333800573Z 🤖 RunPod input configuration:
+2025-07-14T04:17:24.333804849Z   • RUNPOD_INPUT_TIMELINE_JSON: ❌ not set
+2025-07-14T04:17:24.333847853Z   • RUNPOD_INPUT_TIMELINE_URL: ❌ not set
+2025-07-14T04:17:24.333920802Z   • RUNPOD_INPUT_OUTPUT_FILENAME: default: video.mp4
+2025-07-14T04:17:24.333926721Z   • RUNPOD_INPUT_COMPOSITION_ID: default: JsonDrivenVideo
+2025-07-14T04:17:24.334798713Z 📥 Received input: {
+2025-07-14T04:17:24.334819875Z   hasTimelineJson: false,
+2025-07-14T04:17:24.334825713Z   hasTimelineUrl: false,
+2025-07-14T04:17:24.334830280Z   outputFilename: undefined,
+2025-07-14T04:17:24.334834566Z   compositionId: undefined
+2025-07-14T04:17:24.334838873Z }
+2025-07-14T04:17:24.336370970Z ❌ Render failed: Error: No timeline input provided. Set RUNPOD_INPUT_TIMELINE_JSON or RUNPOD_INPUT_TIMELINE_URL
+2025-07-14T04:17:24.336435356Z     at loadTimelineJson (/app/scripts/render-worker.ts:101:11)
+2025-07-14T04:17:24.336445001Z     at main (/app/scripts/render-worker.ts:165:30)
+2025-07-14T04:17:24.336442958Z 📡 Signaling completion to RunPod...
+2025-07-14T04:17:24.336461635Z RUNPOD_RESULT: {"success":false,"error":"No timeline input provided. Set RUNPOD_INPUT_TIMELINE_JSON or RUNPOD_INPUT_TIMELINE_URL"}
+2025-07-14T04:17:24.336449698Z     at path (/app/scripts/render-worker.ts:265:3)
+2025-07-14T04:17:24.336473523Z     at Object.<anonymous> (/app/scripts/render-worker.ts:269:1)
+2025-07-14T04:17:24.336478501Z     at Module._compile (node:internal/modules/cjs/loader:1529:14)
+2025-07-14T04:17:24.336483618Z     at Object.transformer (/app/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1104)
+2025-07-14T04:17:24.336513353Z     at Module.load (node:internal/modules/cjs/loader:1275:32)
+2025-07-14T04:17:24.336518500Z     at Module._load (node:internal/modules/cjs/loader:1096:12)
+2025-07-14T04:17:24.336523287Z     at cjsLoader (node:internal/modules/esm/translators:298:15)
+2025-07-14T04:17:24.336527984Z     at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:240:7)
+2025-07-14T04:17:41.685941704Z 🆕 RunPod Serverless Render Worker version 0.5.0
+2025-07-14T04:17:41.685994513Z 🔒 GCS credential variables:
+2025-07-14T04:17:41.686000482Z   • GOOGLE_CLOUD_PROJECT_ID: ✅ set
+2025-07-14T04:17:41.686005570Z   • GOOGLE_CLOUD_CLIENT_EMAIL: ✅ set
+2025-07-14T04:17:41.686010036Z   • GOOGLE_CLOUD_PRIVATE_KEY: ✅ set
+2025-07-14T04:17:41.686014363Z 🤖 RunPod input configuration:
+2025-07-14T04:17:41.686018829Z   • RUNPOD_INPUT_TIMELINE_JSON: ❌ not set
+2025-07-14T04:17:41.686025259Z   • RUNPOD_INPUT_TIMELINE_URL: ❌ not set
+2025-07-14T04:17:41.686029656Z   • RUNPOD_INPUT_OUTPUT_FILENAME: default: video.mp4
+2025-07-14T04:17:41.686033942Z   • RUNPOD_INPUT_COMPOSITION_ID: default: JsonDrivenVideo
+2025-07-14T04:17:41.686947055Z 📥 Received input: {
+2025-07-14T04:17:41.686958552Z   hasTimelineJson: false,
+2025-07-14T04:17:41.686960816Z   hasTimelineUrl: false,
+2025-07-14T04:17:41.686962628Z   outputFilename: undefined,
+2025-07-14T04:17:41.686965092Z   compositionId: undefined
+2025-07-14T04:17:41.686967225Z }
+2025-07-14T04:17:41.688484360Z ❌ Render failed: Error: No timeline input provided. Set RUNPOD_INPUT_TIMELINE_JSON or RUNPOD_INPUT_TIMELINE_URL
+2025-07-14T04:17:41.688497189Z     at loadTimelineJson (/app/scripts/render-worker.ts:101:11)
+2025-07-14T04:17:41.688499963Z     at main (/app/scripts/render-worker.ts:165:30)
+2025-07-14T04:17:41.688501796Z     at path (/app/scripts/render-worker.ts:265:3)
+2025-07-14T04:17:41.688503479Z     at Object.<anonymous> (/app/scripts/render-worker.ts:269:1)
+2025-07-14T04:17:41.688505151Z     at Module._compile (node:internal/modules/cjs/loader:1529:14)
+2025-07-14T04:17:41.688507374Z     at Object.transformer (/app/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1104)
+2025-07-14T04:17:41.688509457Z     at Module.load (node:internal/modules/cjs/loader:1275:32)
+2025-07-14T04:17:41.688511160Z     at Module._load (node:internal/modules/cjs/loader:1096:12)
+2025-07-14T04:17:41.688512883Z     at cjsLoader (node:internal/modules/esm/translators:298:15)
+2025-07-14T04:17:41.688514595Z     at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:240:7)
+2025-07-14T04:17:41.688534345Z 📡 Signaling completion to RunPod...
+2025-07-14T04:17:41.688547224Z RUNPOD_RESULT: {"success":false,"error":"No timeline input provided. Set RUNPOD_INPUT_TIMELINE_JSON or RUNPOD_INPUT_TIMELINE_URL"}
+2025-07-14T04:17:58.074057311Z 🆕 RunPod Serverless Render Worker version 0.5.0
+2025-07-14T04:17:58.074089649Z 🔒 GCS credential variables:
+2025-07-14T04:17:58.074092353Z   • GOOGLE_CLOUD_PROJECT_ID: ✅ set
+2025-07-14T04:17:58.074094636Z   • GOOGLE_CLOUD_CLIENT_EMAIL: ✅ set
+2025-07-14T04:17:58.074096349Z   • GOOGLE_CLOUD_PRIVATE_KEY: ✅ set
+2025-07-14T04:17:58.074098051Z 🤖 RunPod input configuration:
+2025-07-14T04:17:58.074099774Z   • RUNPOD_INPUT_TIMELINE_JSON: ❌ not set
+2025-07-14T04:17:58.074182107Z   • RUNPOD_INPUT_TIMELINE_URL: ❌ not set
+2025-07-14T04:17:58.074195527Z   • RUNPOD_INPUT_OUTPUT_FILENAME: default: video.mp4
+2025-07-14T04:17:58.074201295Z   • RUNPOD_INPUT_COMPOSITION_ID: default: JsonDrivenVideo
+2025-07-14T04:17:58.075102721Z 📥 Received input: {
+2025-07-14T04:17:58.075111624Z   hasTimelineJson: false,
+2025-07-14T04:17:58.075113818Z   hasTimelineUrl: false,
+2025-07-14T04:17:58.075115721Z   outputFilename: undefined,
+2025-07-14T04:17:58.075117463Z   compositionId: undefined
+2025-07-14T04:17:58.075119296Z }
+2025-07-14T04:17:58.076714027Z ❌ Render failed: Error: No timeline input provided. Set RUNPOD_INPUT_TIMELINE_JSON or RUNPOD_INPUT_TIMELINE_URL
+2025-07-14T04:17:58.076742048Z     at loadTimelineJson (/app/scripts/render-worker.ts:101:11)
+2025-07-14T04:17:58.076751743Z     at main (/app/scripts/render-worker.ts:165:30)
+2025-07-14T04:17:58.076756700Z     at path (/app/scripts/render-worker.ts:265:3)
+2025-07-14T04:17:58.076779344Z     at Object.<anonymous> (/app/scripts/render-worker.ts:269:1)
+2025-07-14T04:17:58.076784732Z     at Module._compile (node:internal/modules/cjs/loader:1529:14)
+2025-07-14T04:17:58.076789730Z     at Object.transformer (/app/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1104)
+2025-07-14T04:17:58.076794376Z     at Module.load (node:internal/modules/cjs/loader:1275:32)
+2025-07-14T04:17:58.076798813Z     at Module._load (node:internal/modules/cjs/loader:1096:12)
+2025-07-14T04:17:58.076803029Z     at cjsLoader (node:internal/modules/esm/translators:298:15)
+2025-07-14T04:17:58.076807306Z     at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:240:7)
+2025-07-14T04:17:58.076775258Z 📡 Signaling completion to RunPod...
+2025-07-14T04:17:58.076819374Z RUNPOD_RESULT: {"success":false,"error":"No timeline input provided. Set RUNPOD_INPUT_TIMELINE_JSON or RUNPOD_INPUT_TIMELINE_URL"}

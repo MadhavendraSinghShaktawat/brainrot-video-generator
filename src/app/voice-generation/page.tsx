@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { VoiceGeneratorService, Voice, SystemInfo } from '@/services/voice-generator';
+import { VoicePicker } from '@/components/ui/voice-picker';
+import { VoiceGeneratorService, SystemInfo } from '@/services/voice-generator';
 
 export default function VoiceGenerationPage(): React.ReactElement {
-  const [voices, setVoices] = useState<Voice[]>([]);
   const [systemInfo, setSystemInfo] = useState<SystemInfo>({
     gpu_available: false,
     gpu_info: 'Loading...',
@@ -19,7 +19,6 @@ export default function VoiceGenerationPage(): React.ReactElement {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAudio, setGeneratedAudio] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [estimatedTime, setEstimatedTime] = useState<number>(0);
   const [remainingTime, setRemainingTime] = useState<number>(0);
   const [progress, setProgress] = useState<number>(0);
 
@@ -29,12 +28,7 @@ export default function VoiceGenerationPage(): React.ReactElement {
 
   const loadData = async (): Promise<void> => {
     try {
-      const [voicesData, systemData] = await Promise.all([
-        VoiceGeneratorService.getAvailableVoices(),
-        VoiceGeneratorService.getSystemInfo()
-      ]);
-      
-      setVoices(voicesData);
+      const systemData = await VoiceGeneratorService.getSystemInfo();
       setSystemInfo(systemData);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -74,7 +68,6 @@ export default function VoiceGenerationPage(): React.ReactElement {
 
     // Calculate estimated time and start countdown
     const estimatedSeconds = calculateEstimatedTime(testText, systemInfo.processing_speed);
-    setEstimatedTime(estimatedSeconds);
     startCountdownTimer(estimatedSeconds);
 
     try {
@@ -114,14 +107,7 @@ export default function VoiceGenerationPage(): React.ReactElement {
     }
   };
 
-  const playVoicePreview = (voice: Voice): void => {
-    if (voice.preview_url) {
-      const audio = new Audio(voice.preview_url);
-      audio.play().catch(error => {
-        console.error('Error playing preview:', error);
-      });
-    }
-  };
+  // The VoicePicker component handles preview playback internally, so we no longer need a separate preview helper here.
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -226,71 +212,26 @@ export default function VoiceGenerationPage(): React.ReactElement {
         </CardContent>
       </Card>
 
-      {/* Voice Selection */}
+      {/* Voice Selection with upload & record */}
       <Card>
         <CardHeader>
-          <CardTitle>Available Voices</CardTitle>
+          <CardTitle>Select / Upload / Record Voice</CardTitle>
           <CardDescription>
-            {voices.length === 0 
-              ? 'No voices available. Add voice files to the voices/ directory.'
-              : `${voices.length} voice(s) available for generation`
-            }
+            Choose an existing voice or add a new one by uploading a file or recording directly in the browser.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {voices.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-gray-500 mb-4">
-                <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
-              </div>
-              <h4 className="text-lg font-medium mb-2">No Voices Available</h4>
-              <p className="text-gray-600 mb-4">
-                Add voice reference files to the <code className="bg-gray-200 px-1 rounded">voices/</code> directory to get started.
-              </p>
-              <p className="text-sm text-gray-500">
-                Supported formats: WAV, MP3, M4A, FLAC, OGG (10-30 seconds, clear speech)
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {voices.map((voice) => (
-                <div
-                  key={voice.id}
-                  className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                    selectedVoice === voice.id 
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => setSelectedVoice(voice.id)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium">{voice.name}</h4>
-                    {voice.preview_url && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          playVoicePreview(voice);
-                        }}
-                      >
-                        ▶️
-                      </Button>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-600">{voice.description}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          <VoicePicker
+            selectedVoiceId={selectedVoice ?? undefined}
+            onSelect={(voiceId) => setSelectedVoice(voiceId)}
+            showUpload
+            showRecord
+          />
         </CardContent>
       </Card>
 
       {/* Text Input and Generation */}
-      {voices.length > 0 && (
-        <Card>
+      <Card>
           <CardHeader>
             <CardTitle>Generate Voice</CardTitle>
             <CardDescription>Enter text to convert to speech using the selected voice</CardDescription>
@@ -323,7 +264,7 @@ export default function VoiceGenerationPage(): React.ReactElement {
               <div>
                 {selectedVoice && (
                   <p className="text-sm text-gray-600">
-                    Selected voice: {voices.find(v => v.id === selectedVoice)?.name}
+                    Selected voice ID: {selectedVoice}
                   </p>
                 )}
               </div>
@@ -360,7 +301,6 @@ export default function VoiceGenerationPage(): React.ReactElement {
             )}
           </CardContent>
         </Card>
-      )}
     </div>
   );
 } 

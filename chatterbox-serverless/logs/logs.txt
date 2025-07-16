@@ -1,0 +1,62 @@
+2025-07-07T04:59:44.703451937Z ==========
+2025-07-07T04:59:44.703460956Z == CUDA ==
+2025-07-07T04:59:44.703465147Z ==========
+2025-07-07T04:59:44.705539609Z CUDA Version 11.8.0
+2025-07-07T04:59:44.706451332Z Container image Copyright (c) 2016-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+2025-07-07T04:59:44.707128198Z This container image and its contents are governed by the NVIDIA Deep Learning Container License.
+2025-07-07T04:59:44.707130643Z By pulling and using the container, you accept the terms and conditions of this license:
+2025-07-07T04:59:44.707132492Z https://developer.nvidia.com/ngc/nvidia-deep-learning-container-license
+2025-07-07T04:59:44.707136211Z A copy of this license is made available in this container at /NGC-DL-CONTAINER-LICENSE for your convenience.
+2025-07-07T04:59:48.345357694Z --- Starting Serverless Worker |  Version 1.7.12 ---
+2025-07-07T04:59:48.619432429Z {"requestId": null, "message": "Jobs in queue: 1", "level": "INFO"}
+2025-07-07T04:59:48.619487944Z {"requestId": null, "message": "Jobs in progress: 1", "level": "INFO"}
+2025-07-07T04:59:48.619581807Z {"requestId": "c08d3b5f-dcef-49a7-a3c1-473440f63d7a-e1", "message": "Started.", "level": "INFO"}
+2025-07-07T04:59:48.645511269Z /usr/local/lib/python3.11/dist-packages/perth/perth_net/__init__.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+2025-07-07T04:59:48.645570802Z   from pkg_resources import resource_filename
+2025-07-07T05:00:08.917087960Z /usr/local/lib/python3.11/dist-packages/diffusers/models/lora.py:393: FutureWarning: `LoRACompatibleLinear` is deprecated and will be removed in version 1.0.0. Use of `LoRACompatibleLinear` is deprecated. Please switch to PEFT backend by installing PEFT: `pip install peft`.
+2025-07-07T05:00:08.917130914Z   deprecate("LoRACompatibleLinear", "1.0.0", deprecation_message)
+2025-07-07T05:00:09.925219979Z flow.py             :223  2025-07-07 05:00:09,924 input frame rate=25
+2025-07-07T05:00:11.160834267Z === Chatterbox TTS RunPod Handler ===
+2025-07-07T05:00:11.160858604Z PyTorch version: 2.6.0+cu124
+2025-07-07T05:00:11.160861529Z Processing text: 138 characters
+2025-07-07T05:00:11.160863506Z Successfully imported ChatterboxTTS
+2025-07-07T05:00:11.160865510Z Using device: cuda
+2025-07-07T05:00:11.160867730Z GPU: NVIDIA RTX A5000
+2025-07-07T05:00:11.160869576Z GPU Memory: 23.6GB
+2025-07-07T05:00:11.160871308Z Loading ChatterboxTTS model...
+2025-07-07T05:00:11.160873170Z loaded PerthNet (Implicit) at step 250,000
+2025-07-07T05:00:11.160875576Z Model loaded successfully
+2025-07-07T05:00:11.160877659Z Cleaned text: 138 characters
+2025-07-07T05:00:11.160879581Z {"requestId": "c08d3b5f-dcef-49a7-a3c1-473440f63d7a-e1", "message": "Finished.", "level": "INFO"}
+2025-07-07T05:01:50.000719439Z {"requestId": null, "message": "Jobs in queue: 1", "level": "INFO"}
+2025-07-07T05:01:50.000791809Z {"requestId": null, "message": "Jobs in progress: 1", "level": "INFO"}
+2025-07-07T05:01:50.000803707Z {"requestId": "5605dda8-de67-49d7-ae17-fff6178d74f8-e2", "message": "Started.", "level": "INFO"}
+2025-07-07T05:01:59.270753660Z flow.py             :223  2025-07-07 05:01:59,270 input frame rate=25
+2025-07-07T05:02:00.677917015Z === Chatterbox TTS RunPod Handler ===
+2025-07-07T05:02:00.677960705Z PyTorch version: 2.6.0+cu124
+2025-07-07T05:02:00.677966077Z Processing text: 138 characters
+2025-07-07T05:02:00.677970352Z Successfully imported ChatterboxTTS
+2025-07-07T05:02:00.677975292Z Using device: cuda
+2025-07-07T05:02:00.677979762Z GPU: NVIDIA RTX A5000
+2025-07-07T05:02:00.677983692Z GPU Memory: 23.6GB
+2025-07-07T05:02:00.677987687Z Loading ChatterboxTTS model...
+2025-07-07T05:02:00.677991660Z loaded PerthNet (Implicit) at step 250,000
+2025-07-07T05:02:00.677995682Z Model loaded successfully
+2025-07-07T05:02:00.677999612Z Cleaned text: 138 characters
+2025-07-07T05:02:00.678003744Z {"requestId": "5605dda8-de67-49d7-ae17-fff6178d74f8-e2", "message": "Finished.", "level": "INFO"}
+2025-07-07T05:18:57.368882518Z {"requestId": null, "message": "Jobs in queue: 1", "level": "INFO"}
+2025-07-07T05:18:57.368921787Z {"requestId": null, "message": "Jobs in progress: 1", "level": "INFO"}
+2025-07-07T05:18:57.368958659Z {"requestId": "a0d7106b-fdcd-4167-bb7b-7d4b779921dd-e2", "message": "Started.", "level": "INFO"}
+2025-07-07T05:19:07.275125908Z flow.py             :223  2025-07-07 05:19:07,274 input frame rate=25
+2025-07-07T05:19:08.522067459Z === Chatterbox TTS RunPod Handler ===
+2025-07-07T05:19:08.522120164Z PyTorch version: 2.6.0+cu124
+2025-07-07T05:19:08.522126851Z Processing text: 138 characters
+2025-07-07T05:19:08.522131508Z Successfully imported ChatterboxTTS
+2025-07-07T05:19:08.522135848Z Using device: cuda
+2025-07-07T05:19:08.522140347Z GPU: NVIDIA RTX A5000
+2025-07-07T05:19:08.522144521Z GPU Memory: 23.6GB
+2025-07-07T05:19:08.522148507Z Loading ChatterboxTTS model...
+2025-07-07T05:19:08.522152708Z loaded PerthNet (Implicit) at step 250,000
+2025-07-07T05:19:08.522170617Z Model loaded successfully
+2025-07-07T05:19:08.522176178Z Cleaned text: 138 characters
+2025-07-07T05:19:08.522180791Z {"requestId": "a0d7106b-fdcd-4167-bb7b-7d4b779921dd-e2", "message": "Finished.", "level": "INFO"}
