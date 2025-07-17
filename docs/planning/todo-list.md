@@ -80,3 +80,16 @@
 - [ ] 10.2 Undo/redo history. `[FE]`  
 - [ ] 10.3 Keyboard shortcuts. `[FE]`  
 - [ ] 10.4 Accessibility pass. `[FE]` 
+
+## 11. Performance & Preview Optimisation  
+- [ ] 11.1 **Down-sample preview resolution** – Render the player at 360-480 p and scale with CSS. `[FE]`  
+- [ ] 11.2 **Quality toggle** – UI switch (Low / High / Original) for preview resolution. `[FE]`  
+- [ ] 11.3 **Throttle preview FPS** – Limit `<Player>` to 15 fps while scrubbing; full fps only on play. `[FE]`  
+- [ ] 11.4 **Virtualise timeline list** – Use `react-window` so only visible clips render. `[FE]`  
+- [ ] 11.5 **Memoise Clip & Track components** – `React.memo`, stable callbacks via `useCallback`. `[FE]`  
+- [ ] 11.6 **Server-side thumbnails** – Generate 320 px JPGs with FFmpeg in a worker; store in Supabase. `[BE]`  
+- [ ] 11.7 **Lazy-load heavy libs** – Dynamic import Monaco editor, large icon packs. `[FE]`  
+- [ ] 11.8 **Bundle analysis & splitting** – Run `next build --profile` and introduce code-splitting for PromptPanel, AI code. `[DEVOPS]`  
+- [ ] 11.9 **Cache asset queries** – Wrap `/api/assets` calls with SWR/React Query and CDN headers. `[BE]`  
+- [ ] 11.10 **GPU-friendly video formats** – Offer HLS 360 p proxies for sidebar previews. `[BE]`  
+- [ ] 11.11 **Measure & profile** – Add React Profiler and Chrome performance budget, document findings. `[DEVOPS]` 

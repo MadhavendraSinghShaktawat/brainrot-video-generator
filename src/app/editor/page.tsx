@@ -76,10 +76,13 @@ type AssetType = 'video' | 'photo' | 'audio';
 interface Asset {
   id: string;
   name: string;
-  url: string;
+  url: string;        // original source
+  previewUrl?: string; // low-res proxy for smooth editing
   type: AssetType;
   size?: number;
   createdAt?: string;
+  /** Duration in seconds – filled once metadata is read (video/audio). */
+  durationSec?: number;
 }
 
 // Helper function to convert MIME type to AssetType
@@ -100,7 +103,7 @@ interface SidebarCategoryConfig {
 }
 
 // Content components for each sidebar category
-const VideosContent: React.FC<{ assets: Asset[]; onFileSelect: () => void; uploadTasks: UploadTask[]; videoThumbs: Record<string, string>; onThumb: (id: string, data: string) => void }> = ({ assets, onFileSelect, uploadTasks, videoThumbs, onThumb }) => {
+const VideosContent: React.FC<{ assets: Asset[]; onFileSelect: () => void; uploadTasks: UploadTask[]; videoThumbs: Record<string, string>; onThumb: (id: string, data: string) => void; onDuration: (id: string, sec: number) => void }> = ({ assets, onFileSelect, uploadTasks, videoThumbs, onThumb, onDuration }) => {
   const videoAssets = assets.filter(asset => asset.type === 'video');
   
   return (
@@ -154,6 +157,7 @@ const VideosContent: React.FC<{ assets: Asset[]; onFileSelect: () => void; uploa
                 asset={asset}
                 thumb={videoThumbs[asset.id]}
                 onThumb={(data) => onThumb(asset.id, data)}
+                onDuration={(sec) => onDuration(asset.id, sec)}
               />
             ))}
           </div>
@@ -171,6 +175,7 @@ const VideosContent: React.FC<{ assets: Asset[]; onFileSelect: () => void; uploa
                 asset={asset}
                 thumb={videoThumbs[asset.id]}
                 onThumb={(data) => onThumb(asset.id, data)}
+                onDuration={(sec) => onDuration(asset.id, sec)}
               />
             ))}
           </div>
@@ -214,7 +219,7 @@ const PhotosContent: React.FC<{ assets: Asset[] }> = ({ assets }) => {
   );
 };
 
-const AudioContent: React.FC<{ assets: Asset[] }> = ({ assets }) => {
+const AudioContent: React.FC<{ assets: Asset[]; onDuration: (id: string, sec: number) => void }> = ({ assets, onDuration }) => {
   const audioAssets = assets.filter((a) => a.type === 'audio');
 
   if (audioAssets.length === 0) {
@@ -244,12 +249,20 @@ const AudioContent: React.FC<{ assets: Asset[] }> = ({ assets }) => {
           >
             <Music className="h-5 w-5 text-blue-400 flex-shrink-0" />
             <span className="text-sm text-gray-200 truncate flex-1">{asset.name}</span>
-            <audio src={asset.url} preload="metadata" className="hidden" />
+            <audio
+              src={asset.previewUrl ?? asset.url}
+              preload="metadata"
+              className="hidden"
+              onLoadedMetadata={(e) => {
+                const dur = (e.currentTarget as HTMLAudioElement).duration;
+                if (!isNaN(dur)) onDuration(asset.id, dur);
+              }}
+            />
             <button
               className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-gray-400 hover:text-white"
               onClick={(e) => {
                 e.stopPropagation();
-                const audio = new Audio(asset.url);
+                const audio = new Audio(asset.previewUrl ?? asset.url);
                 audio.play();
               }}
             >
@@ -407,7 +420,7 @@ const EMPTY_TIMELINE: TimelineType = {
 };
 
 // Helper function to convert asset to timeline event
-const assetToTimelineEvent = (asset: Asset, startFrame: number = 0): Omit<TimelineEvent, 'id'> => {
+const assetToTimelineEvent = (asset: Asset, startFrame: number = 0, fps: number = 30): Omit<TimelineEvent, 'id'> => {
   const extension = asset.name.toLowerCase().split('.').pop() || '';
   
   // Determine asset type based on file extension
@@ -416,14 +429,17 @@ const assetToTimelineEvent = (asset: Asset, startFrame: number = 0): Omit<Timeli
   const audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'm4a'];
   
   let type: TimelineEvent['type'];
-  let defaultDuration = 300; // 10 seconds at 30fps for images
-  
+  // Compute duration in frames based on metadata when available
+  const durationFrames = asset.durationSec ? Math.round(asset.durationSec * fps) : undefined;
+
+  let defaultDuration = durationFrames ?? 300; // initial fallback
+
   if (videoExtensions.includes(extension)) {
     type = 'video';
-    defaultDuration = 900; // 30 seconds at 30fps for videos
+    defaultDuration = durationFrames ?? 900; // real duration if known
   } else if (audioExtensions.includes(extension)) {
     type = 'audio';
-    defaultDuration = 900; // 30 seconds at 30fps for audio
+    defaultDuration = durationFrames ?? 900;
   } else if (imageExtensions.includes(extension)) {
     type = 'image';
     defaultDuration = 300; // 10 seconds at 30fps for images
@@ -432,16 +448,19 @@ const assetToTimelineEvent = (asset: Asset, startFrame: number = 0): Omit<Timeli
     defaultDuration = 300;
   }
   
-  const baseEvent = {
+  const baseEvent: any = {
     type,
     start: startFrame,
     end: startFrame + defaultDuration,
-    maxDuration: defaultDuration,
     scale: 1,
     xPct: 0,
     yPct: 0,
     src: asset.url,
   } as any;
+
+  if (type === 'audio' || type === 'video') {
+    baseEvent.maxDuration = defaultDuration;
+  }
   
   // Add audio-specific properties
   if (type === 'audio') {
@@ -458,7 +477,8 @@ const AssetCard: React.FC<{
   asset: Asset;
   thumb?: string;
   onThumb?: (data: string) => void;
-}> = ({ asset, thumb, onThumb }) => {
+  onDuration?: (sec: number) => void;
+}> = ({ asset, thumb, onThumb, onDuration }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -474,8 +494,12 @@ const AssetCard: React.FC<{
     video.addEventListener('loadedmetadata', () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+      // Save duration to parent
+      if (!isNaN(video.duration)) {
+        (onDuration as any)?.(video.duration);
+      }
       video.currentTime = 0.5; // Seek to 0.5 seconds
-    });
+    }, { once: true });
 
     video.addEventListener('seeked', () => {
         if (ctx) {
@@ -487,15 +511,15 @@ const AssetCard: React.FC<{
           console.warn('Thumbnail generation failed due to CORS', err);
         }
       }
-    });
+    }, { once: true });
 
     video.addEventListener('error', () => {
       setHasError(true);
-    });
+    }, { once: true });
 
     setIsLoading(true);
     video.load();
-  }, [asset, onThumb]);
+  }, [asset, onThumb, onDuration]);
 
   useEffect(() => {
     if (asset.type === 'video' && !thumb && !hasError) {
@@ -510,7 +534,7 @@ const AssetCard: React.FC<{
           <video
             ref={videoRef}
             className="w-full h-16 object-cover rounded-md"
-            src={asset.url}
+            src={(asset as any).previewUrl ?? asset.url}
             muted
             playsInline
             onLoadedData={() => setIsLoading(false)}
@@ -571,7 +595,9 @@ const AssetCard: React.FC<{
 
   // Handle drag start
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('application/json', JSON.stringify(asset));
+    // prefer previewUrl for quicker drag-drop preview
+    const dragAsset = { ...asset, url: asset.previewUrl ?? asset.url };
+    e.dataTransfer.setData('application/json', JSON.stringify(dragAsset));
     e.dataTransfer.effectAllowed = 'copy';
   };
 
@@ -923,7 +949,7 @@ function EditorPageContent() {
     (window as any).currentAssets = currentAssets;
   }, [currentAssets]);
 
-  const handleTimelineDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+  const handleTimelineDrop = useCallback(async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
 
     const BASE_PIXELS_PER_SECOND = 60;
@@ -954,7 +980,29 @@ function EditorPageContent() {
     if (!assetData) return;
 
     try {
-      const asset: Asset = JSON.parse(assetData);
+      let asset: Asset = JSON.parse(assetData);
+
+      // If durationSec missing for media, load metadata synchronously
+      if (!asset.durationSec && (asset.type === 'video' || asset.type === 'audio')) {
+        const getDuration = (url: string, isVideo: boolean): Promise<number> => {
+          return new Promise((resolve) => {
+            const el = isVideo ? document.createElement('video') : document.createElement('audio');
+            el.preload = 'metadata';
+            el.src = url;
+            el.crossOrigin = 'anonymous';
+            el.onloadedmetadata = () => {
+              resolve(el.duration || 0);
+            };
+            // Fallback timeout 3s
+            setTimeout(() => resolve(0), 3000);
+          });
+        };
+
+        const durSec = await getDuration(asset.previewUrl ?? asset.url, asset.type === 'video');
+        if (durSec > 0) {
+          asset = { ...asset, durationSec: durSec };
+        }
+      }
 
       // Collision-aware layer selection (regardless of type).
       // Find all layers that overlap the intended time range and keep bumping up until free.
@@ -976,7 +1024,7 @@ function EditorPageContent() {
       };
 
       // Convert asset to timeline event
-      const eventData = assetToTimelineEvent(asset, startFrame) as Omit<TimelineEvent, 'id'>;
+      const eventData = assetToTimelineEvent(asset, startFrame, timeline?.fps ?? 30) as Omit<TimelineEvent, 'id'>;
       eventData.layer = calcFreeLayer(eventData.start, eventData.end);
 
       addEvent(eventData);
@@ -1239,9 +1287,59 @@ function EditorPageContent() {
                       uploadTasks={uploadTasks}
                       videoThumbs={videoThumbs}
                       onThumb={(id: string, data: string) => setVideoThumbs(prev => ({ ...prev, [id]: data }))}
+                      onDuration={(id: string, sec: number) => {
+                        setCurrentAssets(prev => prev.map(asset => asset.id === id ? { ...asset, durationSec: sec } : asset));
+
+                        const fpsVal = timeline?.fps ?? 30;
+                        const frames = Math.round(sec * fpsVal);
+                        const store = useTimelineStore.getState();
+                        const tl = store.timeline;
+                        if (tl) {
+                          const assetUrl = currentAssets.find(a => a.id === id)?.url;
+                          if (assetUrl) {
+                            tl.events.forEach(ev => {
+                              if ('src' in ev && ev.src === assetUrl) {
+                                const newEnd = Math.min(ev.start + frames, ev.end);
+                                store.resizeEvent(ev.id, ev.start, newEnd, true);
+                                if (store.updateEvent) {
+                                  store.updateEvent(ev.id, { maxDuration: frames } as any, false);
+                                }
+                              }
+                            });
+                          }
+                        }
+                      }}
                     />
                   );
-                } else if (activeCategory === 'photos' || activeCategory === 'audio') {
+                } else if (activeCategory === 'audio') {
+                  return (
+                    <ContentComponent
+                      assets={currentAssets}
+                      onDuration={(id: string, sec: number) => {
+                        setCurrentAssets(prev => prev.map(asset => asset.id === id ? { ...asset, durationSec: sec } : asset));
+
+                        const fpsVal = timeline?.fps ?? 30;
+                        const frames = Math.round(sec * fpsVal);
+                        const store = useTimelineStore.getState();
+                        const tl = store.timeline;
+                        if (tl) {
+                          const assetUrl = currentAssets.find(a => a.id === id)?.url;
+                          if (assetUrl) {
+                            tl.events.forEach(ev => {
+                              if ('src' in ev && ev.src === assetUrl) {
+                                const newEnd = Math.min(ev.start + frames, ev.end);
+                                store.resizeEvent(ev.id, ev.start, newEnd, true);
+                                if (store.updateEvent) {
+                                  store.updateEvent(ev.id, { maxDuration: frames } as any, false);
+                                }
+                              }
+                            });
+                          }
+                        }
+                      }}
+                    />
+                  );
+                } else if (activeCategory === 'photos') {
                   return <ContentComponent assets={currentAssets} />;
                 } else {
                   return <ContentComponent />;

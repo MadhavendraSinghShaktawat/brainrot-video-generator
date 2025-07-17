@@ -4,6 +4,14 @@ import React, { useMemo } from 'react';
 import { Timeline as TimelineType, TimelineEvent } from '@/types/timeline';
 import { Video, Music, Image, MessageSquare, Scissors } from 'lucide-react';
 import { useTimelineStore } from '@/store/timeline-store';
+import { FixedSizeList } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import { clsx } from 'clsx';
+import * as Comlink from 'comlink';
+import type { TimelineWorkerApi } from '@/workers/timeline-worker';
+import CanvasOverlay from './canvas-overlay';
+import WebGLCompositor from './webgl-compositor';
+import InteractionLayer from './interaction-layer';
 
 interface TimelineProps {
   timeline?: TimelineType;
@@ -25,6 +33,7 @@ interface Track {
 const BASE_PIXELS_PER_SECOND = 60; // Base scale factor for timeline visualization
 const TRACK_HEIGHT = 40;
 const RULER_HEIGHT = 30;
+const HEADER_WIDTH = 100;
 
 const getEventColor = (type: TimelineEvent['type']): string => {
   switch (type) {
@@ -61,6 +70,9 @@ const getEventIcon = (type: TimelineEvent['type']): React.ReactNode => {
 };
 
 // === Playhead (current cursor) ===
+// Feature flag – set NEXT_PUBLIC_WEBGL_ONLY=true to rely solely on WebGL compositing and skip DOM clip nodes
+const WEBGL_ONLY = process.env.NEXT_PUBLIC_WEBGL_ONLY === 'true';
+
 const Playhead: React.FC<{
   fps: number;
   currentFrame: number;
@@ -93,16 +105,17 @@ const pixelToFrame = (
   return Math.round(seconds * fps);
 };
 
-const TimeRuler: React.FC<{ fps: number; maxFrames: number; zoom: number }> = ({ fps, maxFrames, zoom }) => {
-  const maxSeconds = Math.ceil(maxFrames / fps);
+const TimeRuler: React.FC<{ fps: number; maxFrames: number; zoom: number; scrollLeft?: number; headerOffset?: number; viewportWidth?: number }> = ({ fps, maxFrames, zoom, scrollLeft = 0, headerOffset = 0, viewportWidth = 0 }) => {
   const pixelsPerSecond = BASE_PIXELS_PER_SECOND * zoom;
+  // Ensure ruler always covers the visible viewport + a small buffer
+  const visibleEndSec = Math.ceil((scrollLeft + viewportWidth) / pixelsPerSecond) + 5; // 5-sec buffer
   const tickMarks = useMemo(() => {
     const marks = [];
-    for (let sec = 0; sec <= maxSeconds; sec++) {
+    for (let sec = 0; sec <= Math.max(visibleEndSec, Math.ceil(maxFrames / fps)); sec++) {
       marks.push(sec);
     }
     return marks;
-  }, [maxSeconds]);
+  }, [visibleEndSec, maxFrames, fps]);
 
   return (
     <div className="relative" style={{ height: RULER_HEIGHT }}>
@@ -112,7 +125,7 @@ const TimeRuler: React.FC<{ fps: number; maxFrames: number; zoom: number }> = ({
             <div
               key={sec}
               className="absolute top-0 h-full border-l border-gray-300 dark:border-gray-600"
-              style={{ left: sec * pixelsPerSecond }}
+              style={{ left: headerOffset + sec * pixelsPerSecond - scrollLeft }}
             >
               <div className="absolute top-1 left-1 text-xs text-gray-600 dark:text-gray-400">
                 {sec}s
@@ -166,10 +179,12 @@ const TrackHeader: React.FC<{ track: Track }> = ({ track }) => {
     }
   };
 
+  const borderClass = WEBGL_ONLY ? '' : 'border-b border-gray-300 dark:border-gray-600';
+
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2 border-b border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 cursor-move select-none"
-      style={{ height: TRACK_HEIGHT }}
+      className={`flex items-center gap-2 px-3 py-2 ${borderClass} bg-gray-50 dark:bg-gray-800 cursor-move select-none`}
+      style={{ height: TRACK_HEIGHT, position: 'sticky', left: 0, zIndex: 20 }}
       onPointerDown={handlePointerDown}
       onPointerEnter={handlePointerEnter}
     >
@@ -377,28 +392,18 @@ const TrackLane: React.FC<{
   const pixelsPerSecond = BASE_PIXELS_PER_SECOND * zoom;
   const laneWidth = maxSeconds * pixelsPerSecond;
 
+  const borderClass = WEBGL_ONLY ? '' : 'border-b border-gray-300 dark:border-gray-600';
+  const bgClass = WEBGL_ONLY ? 'bg-transparent' : 'bg-gray-50 dark:bg-gray-900';
   return (
-    <div className="relative border-b border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900">
-      <div 
+    <div className={`relative ${borderClass} ${bgClass}`}>
+      <div
         className="relative"
-        style={{ 
-          height: TRACK_HEIGHT,
-          width: laneWidth,
-        }}
+        style={{ height: TRACK_HEIGHT, width: laneWidth }}
       >
-        {/* Timeline grid */}
-        <div className="absolute inset-0 pointer-events-none">
-          {Array.from({ length: maxSeconds + 1 }, (_, i) => (
-            <div
-              key={i}
-              className="absolute top-0 h-full border-l border-gray-200 dark:border-gray-700"
-              style={{ left: i * pixelsPerSecond }}
-            />
-          ))}
-        </div>
+        {/* Grid removed – drawn by CanvasOverlay */}
         
-        {/* Timeline clips */}
-        {track.events.map((event) => (
+        {/* Timeline clips – render only when WEBGL_ONLY disabled */}
+        {!WEBGL_ONLY && track.events.map((event) => (
           <TimelineClip
             key={event.id}
             event={event}
@@ -407,14 +412,16 @@ const TrackLane: React.FC<{
             zoom={zoom}
           />
         ))}
+
+       </div>
       </div>
-    </div>
   );
 };
 
 export const Timeline: React.FC<TimelineProps> = ({ timeline, className = '', zoom = 1 }) => {
   // Always call store hooks first to keep order consistent across renders
-  const { currentFrame, setCurrentFrame } = useTimelineStore();
+  const { currentFrame, setCurrentFrame, setZoom } = useTimelineStore();
+  const { selectedEventIds } = useTimelineStore();
 
   // Ref to inner scroll container to compute click offsets — must be before any conditional return
   const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -445,10 +452,42 @@ export const Timeline: React.FC<TimelineProps> = ({ timeline, className = '', zo
     return Array.from(trackMap.values()).sort((a, b) => a.layer - b.layer);
   }, [timeline]);
 
+  // ---- Visible events via Web Worker (async) ----
+  const [visibleEvents, setVisibleEvents] = React.useState<TimelineType['events']>([]);
+
+  const workerInstance = React.useRef<Comlink.Remote<TimelineWorkerApi> | null>(null);
+
+  React.useEffect(() => {
+    const worker = new Worker(new URL('@/workers/timeline-worker.ts', import.meta.url), { type: 'module' });
+    workerInstance.current = Comlink.wrap<TimelineWorkerApi>(worker);
+    return () => worker.terminate();
+  }, []);
+
+  React.useEffect(() => {
+    if (!timeline || !workerInstance.current) return;
+    workerInstance.current
+      .getVisible({ events: timeline.events, currentFrame })
+      .then(setVisibleEvents)
+      .catch(() => {});
+  }, [timeline, currentFrame]);
+
   const maxFrames = useMemo(() => {
     if (!timeline?.events.length) return 300; // Default 10 seconds at 30fps
-    return Math.max(...timeline.events.map(e => e.end));
+    const lastFrame = Math.max(...timeline.events.map(e => e.end));
+    // Add generous 30-second buffer so ruler & grid always exist past end
+    return lastFrame + timeline.fps * 30;
   }, [timeline]);
+
+  const visible = visibleEvents; // alias to keep var name shorter
+
+  // Map of layer -> row index for positioning in WebGLCompositor
+  const trackRowMap = React.useMemo(() => {
+    const map: Record<number, number> = {};
+    tracks.forEach((t, idx) => {
+      map[t.layer] = idx;
+    });
+    return map;
+  }, [tracks]);
 
   if (!timeline) {
     return (
@@ -469,14 +508,14 @@ export const Timeline: React.FC<TimelineProps> = ({ timeline, className = '', zo
     }
     const rect = e.currentTarget.getBoundingClientRect();
     const scrollLeft = (e.currentTarget as HTMLDivElement).scrollLeft || 0;
-    const offsetX = e.clientX - rect.left + scrollLeft;
+    const offsetX = e.clientX - rect.left + scrollLeft - HEADER_WIDTH;
     const newFrame = pixelToFrame(offsetX, timeline.fps, zoom);
     setCurrentFrame(newFrame);
 
     const onMove = (moveEvt: MouseEvent) => {
       const container = scrollRef.current;
       const sl = container ? container.scrollLeft : 0;
-      const moveOffsetX = moveEvt.clientX - rect.left + sl;
+      const moveOffsetX = moveEvt.clientX - rect.left + sl - HEADER_WIDTH;
       const newF = pixelToFrame(moveOffsetX, timeline.fps, zoom);
       setCurrentFrame(newF);
     };
@@ -490,51 +529,133 @@ export const Timeline: React.FC<TimelineProps> = ({ timeline, className = '', zo
     document.addEventListener('mouseup', onUp);
   };
 
-  return (
-    <div className={`${className} bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden`}>
-      <div className="flex">
-        {/* Track headers */}
-        <div className="w-32 flex-shrink-0 bg-gray-100 dark:bg-gray-800">
-          {/* Header for ruler */}
-          <div 
-            className="border-b border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 flex items-center justify-center"
-            style={{ height: RULER_HEIGHT }}
-          >
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-              Tracks
-            </span>
-          </div>
-          
-          {/* Track headers */}
-          {tracks.map((track) => (
-            <TrackHeader key={track.id} track={track} />
-          ))}
-        </div>
-
-        {/* Timeline content */}
-        <div
-          className="flex-1 overflow-x-auto relative"
-          ref={scrollRef}
-          onMouseDown={handlePointerDown}
-        >
-          {/* Time ruler */}
-          <TimeRuler fps={timeline.fps} maxFrames={maxFrames} zoom={zoom} />
-          
-          {/* Timeline tracks */}
-          {tracks.map((track) => (
-            <TrackLane
-              key={track.id}
-              track={track}
-              fps={timeline.fps}
-              maxFrames={maxFrames}
-              zoom={zoom}
-            />
-          ))}
-
-          {/* Playhead overlay */}
-          <Playhead fps={timeline.fps} currentFrame={currentFrame} zoom={zoom} />
-        </div>
+  type RowProps = { index: number; style: React.CSSProperties };
+  const Row: React.FC<RowProps> = React.memo(({ index, style }) => {
+    const track = tracks[index];
+    return (
+      <div style={style} className="flex">
+        <TrackHeader track={track} />
+        <TrackLane track={track} fps={timeline.fps} maxFrames={maxFrames} zoom={zoom} />
       </div>
+    );
+  });
+
+  // Calculate total timeline width to allow horizontal scrolling
+  const pixelsPerSecond = BASE_PIXELS_PER_SECOND * zoom;
+  const maxSeconds = Math.ceil(maxFrames / timeline.fps);
+  const laneWidth = maxSeconds * pixelsPerSecond;
+
+  // state for scrollLeft
+  const [scrollLeft, setScrollLeft] = React.useState(0);
+
+  // Keep viewport width handy for ruler to decide how many ticks are needed
+  const viewportWidth = scrollRef.current?.clientWidth ?? 0;
+
+  // Max scroll based on content width minus viewport
+  const maxScroll = laneWidth - (scrollRef.current?.clientWidth ?? 0);
+
+  // Handle wheel for kinetic-like scroll
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.ctrlKey) return; // zoom already handled elsewhere
+    e.preventDefault();
+    const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+    setScrollLeft((prev) => Math.max(0, Math.min(maxScroll, prev + delta)));
+  };
+
+  return (
+    <div
+      className={clsx('relative select-none flex flex-col', className)}
+      onPointerDown={handlePointerDown}
+      onWheel={(e) => {
+        if (e.ctrlKey) {
+          e.preventDefault();
+          const delta = e.deltaY > 0 ? -0.25 : 0.25;
+          setZoom(Math.min(4, Math.max(0.25, zoom + delta)));
+        }
+      }}
+    >
+      {/* RULER */}
+      <TimeRuler
+        fps={timeline.fps}
+        maxFrames={maxFrames}
+        zoom={zoom}
+        headerOffset={HEADER_WIDTH}
+        scrollLeft={scrollLeft}
+        viewportWidth={viewportWidth}
+      />
+
+      {/* TRACKS container (single horizontal scrollbar) */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-hidden relative timeline-scroll"
+        style={{ height: `calc(100% - ${RULER_HEIGHT}px)` }}
+        onWheel={handleWheel}
+      >
+         <div
+           style={{
+             width: laneWidth + HEADER_WIDTH,
+             height: '100%',
+             position: 'relative',
+             transform: `translateX(-${scrollLeft}px)`,
+             transition: 'transform 0.05s linear',
+           }}
+         >
+           <AutoSizer disableWidth>
+             {({ height }: { height: number }) => (
+               <FixedSizeList
+                 height={height}
+                 width={laneWidth + HEADER_WIDTH}
+                 itemCount={tracks.length}
+                 itemSize={TRACK_HEIGHT}
+                 overscanCount={4}
+                 outerElementType={React.forwardRef<HTMLDivElement, any>((props, ref) => (
+                   <div ref={ref} {...props} style={{ ...props.style, overflowX: 'hidden', overflowY: 'auto' }} />
+                 ))}
+               >
+                 {Row as any}
+               </FixedSizeList>
+             )}
+           </AutoSizer>
+
+           {/* Canvas overlay positioned absolutely inside timeline area */}
+           <CanvasOverlay
+             fps={timeline.fps}
+             maxFrames={maxFrames}
+             zoom={zoom}
+             scrollLeft={scrollLeft}
+             containerHeight={scrollRef.current?.offsetHeight || 300}
+             containerWidth={laneWidth + HEADER_WIDTH}
+             currentFrame={currentFrame}
+           />
+
+           {/* WebGL prototype compositor for visible clips */}
+           <WebGLCompositor
+             events={timeline.events}
+             fps={timeline.fps}
+             zoom={zoom}
+             scrollLeft={scrollLeft}
+             containerHeight={scrollRef.current?.offsetHeight || 300}
+             containerWidth={laneWidth + HEADER_WIDTH}
+             trackRowMap={trackRowMap}
+             selectedIds={selectedEventIds}
+           />
+
+           {/* Interaction layer for hit-testing when WEBGL_ONLY mode */}
+           {WEBGL_ONLY && (
+             <InteractionLayer
+               events={timeline.events}
+               fps={timeline.fps}
+               zoom={zoom}
+               scrollLeft={scrollLeft}
+               containerHeight={scrollRef.current?.offsetHeight || 300}
+               containerWidth={laneWidth + HEADER_WIDTH}
+               trackRowMap={trackRowMap}
+             />
+           )}
+         </div>
+       </div>
+
+      {/* Playhead component deprecated in canvas overlay */}
     </div>
   );
 }; 

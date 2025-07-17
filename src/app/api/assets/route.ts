@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Storage } from '@google-cloud/storage';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import 'dotenv/config';
 
 const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
@@ -34,14 +35,26 @@ export async function GET(req: NextRequest) {
       allowedExt.some((ext) => file.name.toLowerCase().endsWith(ext)),
     );
 
+    // Query preview URLs from Supabase assets table in one go
+    const { data: dbRows } = await supabaseAdmin
+      .from('assets')
+      .select('id,preview_url');
+
+    const previewMap = new Map<string, string>();
+    dbRows?.forEach((r) => {
+      if (r.preview_url) previewMap.set(r.id, r.preview_url);
+    });
+
     // Generate signed GET URLs for each object (valid 24h)
     const urls = await Promise.all(
       filtered.map(async (file) => {
         const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 24 * 60 * 60 * 1000 });
+        const id = file.name.split('.')[0];
         return {
-          id: file.name.split('.')[0],
+          id,
           name: file.metadata.name ?? file.name,
           url,
+          previewUrl: previewMap.get(id) ?? null,
           type,
         };
       }),

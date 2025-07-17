@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Storage } from '@google-cloud/storage';
 import 'dotenv/config';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
 const clientEmail = process.env.GOOGLE_CLOUD_CLIENT_EMAIL;
@@ -36,6 +37,23 @@ export async function POST(req: Request) {
         expires,
         contentType: contentType ?? 'application/octet-stream',
       });
+
+    // Insert stub asset row (proxy will be null for now)
+    const mapExt = (fname: string) => {
+      const lower = fname.toLowerCase();
+      if (/[.](mp4|mov|webm|mkv)$/.test(lower)) return 'video';
+      if (/[.](jpg|jpeg|png|gif|webp)$/.test(lower)) return 'photo';
+      if (/[.](mp3|wav|aac|ogg)$/.test(lower)) return 'audio';
+      return 'video';
+    };
+
+    const { error } = await supabaseAdmin.from('assets').insert({
+      id: filename.split('.')[0],
+      name: filename,
+      url: `gs://${bucketName}/${filename}`,
+      type: mapExt(filename),
+    });
+    if (error) console.warn('supabase insert asset error', error.message);
 
     return NextResponse.json({ url, expires });
   } catch (err) {

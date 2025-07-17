@@ -60,16 +60,56 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ timeline }) => {
   const [autoScale, setAutoScale] = useState<number>(1);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // (Old computeFitScale and effects removed in favour of quality-aware version below)
+
+  const previewScale = scaleMode === 'fit' ? autoScale : parseFloat(scaleMode);
+
+  // --- Preview quality (down-sample resolution) ---
+  const [quality, setQuality] = useState<'low' | 'medium' | 'high' | 'original'>('high');
+
+  // Detect low-power devices and lower default quality/FPS
+  useEffect(() => {
+    const cores = (navigator as any).hardwareConcurrency ?? 2;
+    if (cores <= 4) {
+      // medium res & 15fps give good perf on dual-core machines
+      setQuality('medium');
+      setPreviewFps(15);
+    }
+  }, []);
+
+  // --- Preview framerate (UI + transform updates) ---
+  const [previewFps, setPreviewFps] = useState<number>(30); // 15 / 24 / 30
+
+  const qualityScale = React.useMemo(() => {
+    switch (quality) {
+      case 'low':
+        return 0.25; // 25% of original → ~480p for 1080p source
+      case 'medium':
+        return 0.5; // 720p for 1080p source
+      case 'high':
+        return 0.75; // 810p
+      case 'original':
+      default:
+        return 1;
+    }
+  }, [quality]);
+
+  // Scaled composition dimensions (actual pixel resolution that videos/images are rendered at)
+  const scaledWidth = timeline ? timeline.width * qualityScale : 0;
+  const scaledHeight = timeline ? timeline.height * qualityScale : 0;
+
+  // Re-compute fit scale based on scaled dimensions
   const computeFitScale = () => {
     if (!containerRef.current || !timeline) return 1;
     const { clientWidth, clientHeight } = containerRef.current;
-    return Math.min(clientWidth / timeline.width, clientHeight / timeline.height);
+    return Math.min(clientWidth / scaledWidth, clientHeight / scaledHeight);
   };
 
+  // Use effect remains but depends on qualityScale too
   useLayoutEffect(() => {
     if (scaleMode !== 'fit') return;
     setAutoScale(computeFitScale());
-  }, [scaleMode, timeline]);
+  }, [scaleMode, timeline, scaledWidth, scaledHeight]);
 
   // Listen to window resize so "Fit" stays correct
   useEffect(() => {
@@ -80,14 +120,11 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ timeline }) => {
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [scaleMode, timeline]);
-
-  const previewScale = scaleMode === 'fit' ? autoScale : parseFloat(scaleMode);
+  }, [scaleMode, timeline, scaledWidth, scaledHeight]);
 
   const rafRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const frameRef = useRef<number>(currentFrame);
-  // next time (ms) we will push a React state update; throttles UI to ~10 fps
   const nextUiUpdateRef = useRef<number>(0);
   const elementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -119,14 +156,13 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ timeline }) => {
         setIsPlaying(false);
       }
 
-      // Push React state at most every 100 ms (10 fps) to lighten main-thread
+      // Throttle UI & transform updates to `previewFps`
+      const interval = 1000 / previewFps;
       if (now >= nextUiUpdateRef.current) {
-        nextUiUpdateRef.current = now + 100;
+        nextUiUpdateRef.current = now + interval;
         setCurrentFrame(frameRef.current);
+        updateTransforms();
       }
-
-      // Imperative style sync (does not trigger React work)
-      updateTransforms();
 
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -159,8 +195,8 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ timeline }) => {
   // Imperatively update transforms every animation frame to avoid React churn
   const updateTransforms = React.useCallback(() => {
     if (!timeline) return;
-    const compW = timeline.width;
-    const compH = timeline.height;
+    const compW = scaledWidth;
+    const compH = scaledHeight;
     // Update only visible events to cut JS work on mobile
     visibleEvents.forEach((event) => {
       // Only update if element is mounted (visible)
@@ -170,7 +206,7 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ timeline }) => {
       const offsetY = (event.yPct ?? 0) * compH;
       el.style.transform = `translate(-50%,-50%) translate(${offsetX}px, ${offsetY}px) scale(${event.scale ?? 1})`;
     });
-  }, [timeline, visibleEvents]);
+  }, [timeline, visibleEvents, scaledWidth, scaledHeight]);
 
   if (!timeline) {
     return (
@@ -200,8 +236,8 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ timeline }) => {
       const onMove = (mv: PointerEvent) => {
         const deltaX = (mv.clientX - startX) / previewScale;
         const deltaY = (mv.clientY - startY) / previewScale;
-        const compW = timeline?.width ?? 1920;
-        const compH = timeline?.height ?? 1080;
+        const compW = scaledWidth;
+        const compH = scaledHeight;
         const dxPct = deltaX / compW;
         const dyPct = deltaY / compH;
         liveXPct = Math.max(-0.5, Math.min(0.5, (event.xPct ?? 0) + dxPct));
@@ -224,8 +260,8 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ timeline }) => {
       document.addEventListener('pointerup', onUp, { passive: false });
     };
 
-    const offsetX = (event.xPct ?? 0) * (timeline?.width ?? 1920);
-    const offsetY = (event.yPct ?? 0) * (timeline?.height ?? 1080);
+    const offsetX = (event.xPct ?? 0) * scaledWidth;
+    const offsetY = (event.yPct ?? 0) * scaledHeight;
 
     const wrapperStyle: React.CSSProperties = {
       position: 'absolute',
@@ -305,8 +341,8 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ timeline }) => {
                 liveScale = Math.max(0.1, (event.scale ?? 1) + delta / 200);
                 const el = elementsRef.current.get(event.id);
                 if (el) {
-                  const compW = timeline?.width ?? 1920;
-                  const compH = timeline?.height ?? 1080;
+                  const compW = scaledWidth;
+                  const compH = scaledHeight;
                   const offsetX = (event.xPct ?? 0) * compW;
                   const offsetY = (event.yPct ?? 0) * compH;
                   el.style.transform = `translate(-50%,-50%) translate(${offsetX}px, ${offsetY}px) scale(${liveScale})`;
@@ -337,8 +373,8 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ timeline }) => {
         {timeline && (
           <div
             style={{
-              width: timeline.width,
-              height: timeline.height,
+              width: scaledWidth,
+              height: scaledHeight,
               position: 'relative',
               transform: `scale(${previewScale})`,
               transformOrigin: 'center center',
@@ -392,6 +428,29 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ timeline }) => {
           <option value="0.75">75%</option>
           <option value="0.5">50%</option>
           <option value="0.25">25%</option>
+        </select>
+
+        {/* Quality selector */}
+        <select
+          value={quality}
+          onChange={(e) => setQuality(e.target.value as any)}
+          className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 focus:outline-none"
+        >
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="original">Original</option>
+        </select>
+
+        {/* FPS selector */}
+        <select
+          value={previewFps}
+          onChange={(e) => setPreviewFps(parseInt(e.target.value, 10))}
+          className="bg-gray-800 text-gray-200 text-xs rounded px-2 py-1 focus:outline-none"
+        >
+          <option value={15}>15 fps</option>
+          <option value={24}>24 fps</option>
+          <option value={30}>30 fps</option>
         </select>
 
         {/* Zoom Out */}
