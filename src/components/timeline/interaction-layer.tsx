@@ -27,7 +27,7 @@ const InteractionLayer: React.FC<InteractionLayerProps> = ({
   containerWidth,
   trackRowMap,
 }) => {
-  const { selectEvent, selectedEventIds, selectEvents } = useTimelineStore();
+  const { selectEvent, selectedEventIds, selectEvents, changeEventLayer, pushToHistory } = useTimelineStore();
   const { moveEvent, resizeEvent } = useTimelineStore();
 
   // Cursor feedback on hover
@@ -167,22 +167,53 @@ const InteractionLayer: React.FC<InteractionLayerProps> = ({
         });
 
         const startClientX = e.clientX;
+        const startClientY = e.clientY;
+
+        // Map row index -> layer for quick lookup
+        const rowToLayer: Record<number, number> = {};
+        Object.entries(trackRowMap).forEach(([layerStr, row]) => {
+          rowToLayer[row] = parseInt(layerStr, 10);
+        });
 
         const onPointerMove = (moveEvt: PointerEvent) => {
           const dxPixels = moveEvt.clientX - startClientX;
           const deltaFrames = Math.round((dxPixels / pixelsPerSecond) * fps);
 
+          const dyPixels = moveEvt.clientY - startClientY;
+          const deltaRows = Math.round(dyPixels / TRACK_HEIGHT);
+
           originals.forEach(({ id, start, end }) => {
+            const ev = events.find((e) => e.id === id);
+            if (!ev) return;
+
+            // Horizontal move
             const newStart = Math.max(0, start + deltaFrames);
             const duration = end - start;
+
+            // Vertical move – compute new layer
+            const currentRowIdx = trackRowMap[ev.layer ?? 1] ?? 0;
+            let targetRowIdx = currentRowIdx + deltaRows;
+
+            // Clamp to existing rows
+            const maxRowIdx = Math.max(...Object.values(trackRowMap));
+            targetRowIdx = Math.max(0, Math.min(maxRowIdx, targetRowIdx));
+            const targetLayer = rowToLayer[targetRowIdx] ?? ev.layer ?? 1;
+
+            // Apply horizontal move (frames) and vertical move (layer)
             moveEvent(id, newStart, newStart + duration, false);
+            if (targetLayer !== ev.layer) {
+              changeEventLayer(id, targetLayer, false);
+            }
           });
         };
 
         const onPointerUp = () => {
           window.removeEventListener('pointermove', onPointerMove);
           window.removeEventListener('pointerup', onPointerUp);
-          // nothing else for now
+
+          // Commit final positions with history record
+          // Record a single history entry after drag completes
+          pushToHistory();
         };
 
         window.addEventListener('pointermove', onPointerMove);
@@ -192,7 +223,7 @@ const InteractionLayer: React.FC<InteractionLayerProps> = ({
         selectEvent(null);
       }
     },
-    [events, fps, zoom, scrollLeft, trackRowMap, selectEvent, selectedEventIds, moveEvent, selectEvents, resizeEvent]
+    [events, fps, zoom, scrollLeft, trackRowMap, selectEvent, selectedEventIds, moveEvent, selectEvents, resizeEvent, changeEventLayer, pushToHistory]
   );
 
   return (
@@ -203,6 +234,7 @@ const InteractionLayer: React.FC<InteractionLayerProps> = ({
         left: 0,
         width: containerWidth,
         height: containerHeight + RULER_HEIGHT,
+        zIndex: 20,
         cursor: 'default',
       }}
       onPointerDown={handlePointerDown}

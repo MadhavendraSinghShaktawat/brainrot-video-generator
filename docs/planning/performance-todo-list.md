@@ -19,7 +19,7 @@
 
 ## 4. Single-Canvas Compositing  `[FE]`
 - [x] 4.1 Prototype WebGL compositing of visible layers.
-- [ ] 4.2 Replace per-item DOM nodes with draw calls.
+- [x] 4.2 Replace per-item DOM nodes with draw calls.
 - [x] 4.3 Draw grid & playhead on one `<canvas>` overlay.
 - [x] 4.4 Implement transform-based horizontal panning (CSS translateX) for kinetic scroll.
 

@@ -37,6 +37,7 @@ import {
   Scissors,
   Search,
   FileText,
+  User,
 } from 'lucide-react';
 import {
   Card,
@@ -58,6 +59,11 @@ import EditorNav from '@/components/editor/editor-nav';
 import PromptPanel from '@/components/editor/prompt-panel';
 import { TimelineAction } from '@/ai/actions';
 import { applyAction } from '@/lib/apply-action';
+import { useAvatarRender } from '@/hooks/use-avatar-render';
+import { useAvatarStatus } from '@/hooks/use-avatar-status';
+import { useAvatarTemplates } from '@/hooks/use-avatar-templates';
+import { useVoices } from '@/hooks/use-voices';
+import { useAssets } from '@/hooks/use-assets';
 const PreviewPlayer = dynamic(() => import('@/components/preview/player'), { ssr: false });
 
 /**
@@ -93,7 +99,17 @@ const mimeTypeToAssetType = (mimeType: string): AssetType => {
   return 'video'; // Default fallback
 };
 
-type SidebarCategory = 'videos' | 'photos' | 'audio' | 'text' | 'captions' | 'transcript' | 'effects' | 'stickers' | 'format';
+type SidebarCategory =
+  | 'videos'
+  | 'photos'
+  | 'audio'
+  | 'avatars'
+  | 'text'
+  | 'captions'
+  | 'transcript'
+  | 'effects'
+  | 'stickers'
+  | 'format';
 
 interface SidebarCategoryConfig {
   id: SidebarCategory;
@@ -391,11 +407,159 @@ const FormatContent: React.FC = () => (
   </div>
 );
 
+const AvatarsContent: React.FC = () => {
+  const [script, setScript] = React.useState('');
+  const [avatarId, setAvatarId] = React.useState<string | null>(null);
+  const { data: voicesData, isPending: loadingVoices } = useVoices();
+  const voices = voicesData?.voices ?? [];
+  const [voiceId, setVoiceId] = React.useState<string | null>(null);
+  const [playingVoiceId, setPlayingVoiceId] = React.useState<string | null>(null);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  // Auto-play preview when voice changes
+  React.useEffect(() => {
+    if (!voiceId) return;
+    const voice = voices.find((v) => v.id === voiceId);
+    if (!voice?.previewUrl) return;
+
+    // Stop current
+    if (audioRef.current) audioRef.current.pause();
+
+    const audio = new Audio(voice.previewUrl);
+    audioRef.current = audio;
+    setPlayingVoiceId(voiceId);
+    audio.play().catch(() => {});
+    audio.onended = () => setPlayingVoiceId(null);
+  }, [voiceId, voices]);
+
+  const { mutate: startRender, data, error, isPending } = useAvatarRender();
+  const jobId = data?.id;
+
+  const { data: statusData } = useAvatarStatus(jobId);
+  const { data: templatesData, isPending: loadingTemplates } = useAvatarTemplates();
+  const templates = templatesData?.avatars ?? [];
+
+  const addEvent = useTimelineStore((s) => s.addEvent);
+  const getMaxFrame = useTimelineStore((s) => s.getMaxFrame);
+  const timeline = useTimelineStore((s) => s.timeline);
+
+  // When job completes insert video event
+  React.useEffect(() => {
+    if (statusData?.status === 'completed' && statusData.outputUrl) {
+      const fps = timeline?.fps ?? 30;
+      const start = getMaxFrame();
+      const duration = fps * 300; // placeholder 10s
+      addEvent({
+        type: 'video',
+        start,
+        end: start + duration,
+        src: statusData.outputUrl,
+        layer: 1,
+        scale: 1,
+        xPct: 0,
+        yPct: 0,
+        maxDuration: duration,
+      } as any);
+    }
+  }, [statusData]);
+
+  const handleRender = () => {
+    if (!script.trim() || !avatarId) return;
+    startRender({ script, avatarId, voiceId: voiceId || undefined });
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Avatar selection grid */}
+      <div>
+        <p className="text-xs font-medium text-gray-400 mb-2">Choose an Avatar</p>
+        {loadingTemplates && <p className="text-gray-500 text-xs">Loading avatars…</p>}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
+          {templates.map((t) => (
+            <button
+              key={t.id}
+              className={`relative rounded-lg overflow-hidden border-2 ${avatarId === t.id ? 'border-blue-500' : 'border-transparent'} focus:outline-none`}
+              onClick={() => setAvatarId(t.id)}
+            >
+              {t.thumbnailUrl ? (
+                <img
+                  src={t.thumbnailUrl}
+                  alt={t.name}
+                  loading="lazy"
+                  className="w-full h-24 object-cover"
+                />
+              ) : (
+                <div className="w-full h-24 bg-gray-700 flex items-center justify-center text-[10px] text-gray-300 p-1 text-center">
+                  {t.name}
+                </div>
+              )}
+              <span className="absolute bottom-0 left-0 right-0 text-[10px] bg-black/60 text-white px-1 truncate">
+                {t.name}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Voice selector */}
+      <div>
+        <p className="text-xs font-medium text-gray-400 mb-2">Choose Voice</p>
+        {loadingVoices && <p className="text-gray-500 text-xs">Loading voices…</p>}
+        <select
+          className="w-full bg-gray-800 border border-gray-700 rounded-md text-sm text-white p-2"
+          value={voiceId ?? ''}
+          onChange={(e) => setVoiceId(e.target.value || null)}
+        >
+          <option value="">Select voice</option>
+          {voices.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+            </option>
+          ))}
+        </select>
+        {/* Auto-preview handled on change; show status */}
+        {voiceId && playingVoiceId === voiceId && (
+          <p className="mt-1 text-xs text-blue-400">Playing preview…</p>
+        )}
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-400 mb-1">Script</label>
+        <textarea
+          className="w-full rounded-md bg-gray-800 border border-gray-700 p-2 text-sm text-white focus:outline-none h-32 resize-none"
+          value={script}
+          onChange={(e) => setScript(e.target.value)}
+          placeholder="Enter dialog for the avatar to speak"
+        />
+      </div>
+      <button
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md text-sm disabled:opacity-50"
+        disabled={isPending || !script.trim() || !avatarId || !voiceId}
+        onClick={handleRender}
+      >
+        {isPending ? 'Submitting…' : 'Render Speaking Avatar'}
+      </button>
+
+      {error && <p className="text-red-500 text-xs">{error.message}</p>}
+
+      {statusData && (
+        <div className="text-gray-400 text-xs">
+          Status: {statusData.status}
+          {statusData.outputUrl && (
+            <>
+              {' '}– <a href={statusData.outputUrl} target="_blank" className="underline">Preview</a>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Sidebar category configurations
 const SIDEBAR_CATEGORIES: SidebarCategoryConfig[] = [
   { id: 'videos', label: 'VIDEOS', icon: VideoIcon, content: VideosContent },
   { id: 'photos', label: 'PHOTOS', icon: Camera, content: PhotosContent },
   { id: 'audio', label: 'AUDIO', icon: Music, content: AudioContent },
+  { id: 'avatars', label: 'AVATARS', icon: User, content: AvatarsContent },
   { id: 'text', label: 'TEXT', icon: Type, content: TextContent },
   { id: 'captions', label: 'CAPTIONS', icon: Hash, content: CaptionsContent },
   { id: 'transcript', label: 'TRANSCRIPT', icon: FileText, content: TranscriptContent },
@@ -433,7 +597,7 @@ const assetToTimelineEvent = (asset: Asset, startFrame: number = 0, fps: number 
   const durationFrames = asset.durationSec ? Math.round(asset.durationSec * fps) : undefined;
 
   let defaultDuration = durationFrames ?? 300; // initial fallback
-
+  
   if (videoExtensions.includes(extension)) {
     type = 'video';
     defaultDuration = durationFrames ?? 900; // real duration if known
@@ -915,34 +1079,38 @@ function EditorPageContent() {
   }, [timeline, timelineIdParam, setTimeline]);
 
   // 2) Load assets once on first mount – avoids flooding `/api/assets`
-  useEffect(() => {
-    let isMounted = true;
+  const { data: assetVideos = [] } = useAssets('video');
+  const { data: assetPhotos = [] } = useAssets('photo');
+  const { data: assetAudio = [] } = useAssets('audio');
 
-    const loadAssets = async () => {
-      try {
-        const types: AssetType[] = ['video', 'photo', 'audio'];
-        const all: Asset[] = [];
-        await Promise.all(
-          types.map(async (t) => {
-            const res = await fetch(`/api/assets?type=${t}`);
-            if (res.ok) {
-              const data = await res.json();
-              all.push(...data.map((a: any) => ({ ...a, type: t })));
-            }
-          }),
-        );
-        if (isMounted) setCurrentAssets(all);
-      } catch (error) {
-        console.error('Failed to load assets:', error);
-      }
-    };
+    // Merge assets whenever any list updates
+    React.useEffect(() => {
+      const merged: Asset[] = [
+        ...assetVideos.map((v: any) => ({
+          id: v.id,
+          name: v.name ?? v.id,
+          url: v.url,
+          previewUrl: v.previewUrl,
+          type: 'video' as AssetType,
+        })),
+        ...assetPhotos.map((v: any) => ({
+          id: v.id,
+          name: v.name ?? v.id,
+          url: v.url,
+          previewUrl: v.previewUrl,
+          type: 'photo' as AssetType,
+        })),
+        ...assetAudio.map((v: any) => ({
+          id: v.id,
+          name: v.name ?? v.id,
+          url: v.url,
+          previewUrl: v.previewUrl,
+          type: 'audio' as AssetType,
+        })),
+      ];
 
-    loadAssets();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []); // empty deps ⇒ run once
+      setCurrentAssets(merged);
+    }, [assetVideos, assetPhotos, assetAudio]);
 
   // Expose assets globally for AI helper
   useEffect(() => {
@@ -1341,6 +1509,8 @@ function EditorPageContent() {
                   );
                 } else if (activeCategory === 'photos') {
                   return <ContentComponent assets={currentAssets} />;
+                } else if (activeCategory === 'avatars') {
+                  return <ContentComponent />;
                 } else {
                   return <ContentComponent />;
                 }

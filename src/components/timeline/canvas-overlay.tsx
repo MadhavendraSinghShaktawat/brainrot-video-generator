@@ -87,6 +87,7 @@ const CanvasOverlay: React.FC<CanvasOverlayProps> = ({
         width: containerWidth,
         height: containerHeight + RULER_HEIGHT + EXTRA,
         pointerEvents: 'none',
+        zIndex: 30,
       }}
     />
   );

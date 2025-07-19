@@ -69,9 +69,8 @@ const getEventIcon = (type: TimelineEvent['type']): React.ReactNode => {
   }
 };
 
-// === Playhead (current cursor) ===
-// Feature flag – set NEXT_PUBLIC_WEBGL_ONLY=true to rely solely on WebGL compositing and skip DOM clip nodes
-const WEBGL_ONLY = process.env.NEXT_PUBLIC_WEBGL_ONLY === 'true';
+// DOM clip nodes have been fully replaced by WebGL compositing – always true now
+const WEBGL_ONLY = true;
 
 const Playhead: React.FC<{
   fps: number;
@@ -426,6 +425,9 @@ export const Timeline: React.FC<TimelineProps> = ({ timeline, className = '', zo
   // Ref to inner scroll container to compute click offsets — must be before any conditional return
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
+  // Scroll position must be declared before any conditional early return to keep Hook order stable
+  const [scrollLeft, setScrollLeft] = React.useState(0);
+
   const tracks = useMemo(() => {
     if (!timeline?.events) return [];
 
@@ -544,9 +546,6 @@ export const Timeline: React.FC<TimelineProps> = ({ timeline, className = '', zo
   const pixelsPerSecond = BASE_PIXELS_PER_SECOND * zoom;
   const maxSeconds = Math.ceil(maxFrames / timeline.fps);
   const laneWidth = maxSeconds * pixelsPerSecond;
-
-  // state for scrollLeft
-  const [scrollLeft, setScrollLeft] = React.useState(0);
 
   // Keep viewport width handy for ruler to decide how many ticks are needed
   const viewportWidth = scrollRef.current?.clientWidth ?? 0;

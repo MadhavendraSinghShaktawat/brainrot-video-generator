@@ -3,6 +3,18 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     domains: ['storage.googleapis.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cdn.heygen.com',
+        pathname: '**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'assets.heygen.com',
+        pathname: '**',
+      },
+    ],
   },
   eslint: {
     // Skip ESLint during `next build` so lint warnings (e.g. explicit `any`) don’t break the build

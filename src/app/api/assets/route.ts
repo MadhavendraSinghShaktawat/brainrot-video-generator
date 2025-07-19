@@ -35,18 +35,44 @@ export async function GET(req: NextRequest) {
       allowedExt.some((ext) => file.name.toLowerCase().endsWith(ext)),
     );
 
-    // Query preview URLs from Supabase assets table in one go
-    const { data: dbRows } = await supabaseAdmin
+    // --------- 1) Optional metadata from assets table (preview thumbnails etc.) ---------
+    const { data: assetRows } = await supabaseAdmin
       .from('assets')
-      .select('id,preview_url');
+      .select('id,preview_url,url,description');
 
     const previewMap = new Map<string, string>();
-    dbRows?.forEach((r) => {
+    const legacyRemoteAssets: any[] = [];
+
+    assetRows?.forEach((r) => {
       if (r.preview_url) previewMap.set(r.id, r.preview_url);
+      if (r.url) {
+        legacyRemoteAssets.push({
+          id: r.id,
+          name: r.description ?? r.id,
+          url: r.url,
+          previewUrl: r.preview_url ?? null,
+          type,
+        });
+      }
     });
 
+    // --------- 2) Completed avatar_jobs records ---------
+    const { data: jobRows } = await supabaseAdmin
+      .from('avatar_jobs')
+      .select('id,output_url,request')
+      .eq('status', 'completed')
+      .not('output_url', 'is', null);
+
+    const jobAssets = (jobRows ?? []).map((j) => ({
+      id: j.id,
+      name: (j.request as any)?.script?.slice?.(0, 50) ?? 'Avatar video',
+      url: j.output_url,
+      previewUrl: previewMap.get(j.id) ?? null,
+      type,
+    }));
+
     // Generate signed GET URLs for each object (valid 24h)
-    const urls = await Promise.all(
+    const localUrls = await Promise.all(
       filtered.map(async (file) => {
         const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 24 * 60 * 60 * 1000 });
         const id = file.name.split('.')[0];
@@ -60,7 +86,7 @@ export async function GET(req: NextRequest) {
       }),
     );
 
-    return NextResponse.json(urls);
+    return NextResponse.json([...legacyRemoteAssets, ...jobAssets, ...localUrls]);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('Assets list error', err);

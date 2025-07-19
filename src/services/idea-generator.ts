@@ -85,12 +85,21 @@ Return ONLY a valid JSON array of objects with this exact structure:
 
   static async generateIdeas(request: IdeaGenerationRequest): Promise<StoryIdea[]> {
     try {
+      // Check if OpenAI is properly configured
+      if (!process.env.OPENAI_KEY && !process.env.OPENAI_API_KEY) {
+        throw new Error('OpenAI API key not configured');
+      }
+
+      console.log('🎯 Generating ideas with request:', request);
+      
       const prompt = this.VIRAL_ANALYSIS_PROMPT + 
         this.IDEA_GENERATION_PROMPT
           .replace('{count}', request.count.toString())
           .replace('{tone}', request.tone || 'dramatic')
           .replace('{length}', request.length || 'medium');
 
+      console.log('📝 Calling OpenAI API...');
+      
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -112,14 +121,25 @@ Return ONLY a valid JSON array of objects with this exact structure:
         throw new Error('No response from OpenAI');
       }
 
+      console.log('📦 Raw OpenAI response:', response.substring(0, 200) + '...');
+
       // Clean up the response to ensure valid JSON
       const cleanedResponse = response
         .replace(/^```json\s*/, '')
         .replace(/\s*```$/, '')
         .trim();
 
-      const ideas: StoryIdea[] = JSON.parse(cleanedResponse);
-      return ideas;
+      console.log('🧹 Cleaned response:', cleanedResponse.substring(0, 200) + '...');
+
+      try {
+        const ideas: StoryIdea[] = JSON.parse(cleanedResponse);
+        console.log('✅ Successfully parsed ideas:', ideas.length);
+        return ideas;
+      } catch (parseError) {
+        console.error('❌ JSON Parse Error:', parseError);
+        console.error('📄 Raw response that failed to parse:', cleanedResponse);
+        throw new Error(`Failed to parse OpenAI response: ${parseError}`);
+      }
     } catch (error) {
       console.error('Error generating ideas:', error);
       throw new Error('Failed to generate story ideas. Please try again.');

@@ -232,6 +232,7 @@ const WebGLCompositor: React.FC<WebGLCompositorProps> = ({
         width: containerWidth,
         height: containerHeight + RULER_HEIGHT + 10,
         pointerEvents: 'none',
+        zIndex: 10,
       }}
     />
   );
